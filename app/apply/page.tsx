@@ -194,6 +194,8 @@ export default function ApplyPage() {
               <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
                 {data?.session.status === "CANCELLED"
                   ? `취소됨 (${data.session.cancelReason || "기상 악화"})`
+                  : data?.session.status === "OFF"
+                  ? `🚫 미운영 (${data.session.cancelReason || "휴무"})`
                   : "신청 준비 중"}
               </span>
             )}
@@ -342,6 +344,8 @@ export default function ApplyPage() {
               <span>접수 처리 중...</span>
             ) : isFull ? (
               <span>선착순 30명 마감되었습니다</span>
+            ) : data?.session.status === "OFF" ? (
+              <span>🚫 오늘 아침달리기는 운영하지 않습니다 ({data?.session.cancelReason || "휴무"})</span>
             ) : !isOpen ? (
               <span>현재 참가 신청 접수 시간이 아닙니다</span>
             ) : (

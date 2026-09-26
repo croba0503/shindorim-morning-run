@@ -11,7 +11,7 @@ export interface Session {
   isOpen: boolean; // 신청 접수 가능 여부
   maxCapacity: number; // 기본 30
   isDoubleMileage: boolean; // 마일리지 2배 이벤트 여부
-  status: "READY" | "OPEN" | "CLOSED" | "CANCELLED";
+  status: "READY" | "OPEN" | "CLOSED" | "CANCELLED" | "OFF";
   cancelReason?: string;
   notice?: string;
 }
@@ -183,6 +183,75 @@ export function getInitialData(): AppDatabase {
       maxCapacity: 30,
       isDoubleMileage: false,
       status: "OPEN",
+    },
+    {
+      id: "sess-2026-09-28",
+      date: "2026-09-28",
+      dayOfWeek: "월",
+      sessionNumber: 6,
+      code: "7231",
+      isOpen: false,
+      maxCapacity: 30,
+      isDoubleMileage: false,
+      status: "READY",
+    },
+    {
+      id: "sess-2026-09-29",
+      date: "2026-09-29",
+      dayOfWeek: "화",
+      sessionNumber: 7,
+      code: "8912",
+      isOpen: false,
+      maxCapacity: 30,
+      isDoubleMileage: false,
+      status: "READY",
+    },
+    {
+      id: "sess-2026-09-30",
+      date: "2026-09-30",
+      dayOfWeek: "수",
+      sessionNumber: 0,
+      code: "-",
+      isOpen: false,
+      maxCapacity: 0,
+      isDoubleMileage: false,
+      status: "OFF",
+      cancelReason: "추석 연휴 휴무",
+    },
+    {
+      id: "sess-2026-10-01",
+      date: "2026-10-01",
+      dayOfWeek: "목",
+      sessionNumber: 0,
+      code: "-",
+      isOpen: false,
+      maxCapacity: 0,
+      isDoubleMileage: false,
+      status: "OFF",
+      cancelReason: "중간고사 시험 기간",
+    },
+    {
+      id: "sess-2026-10-05",
+      date: "2026-10-05",
+      dayOfWeek: "월",
+      sessionNumber: 8,
+      code: "1123",
+      isOpen: false,
+      maxCapacity: 30,
+      isDoubleMileage: false,
+      status: "READY",
+    },
+    {
+      id: "sess-2026-10-07",
+      date: "2026-10-07",
+      dayOfWeek: "수",
+      sessionNumber: 9,
+      code: "3344",
+      isOpen: false,
+      maxCapacity: 30,
+      isDoubleMileage: true,
+      status: "READY",
+      notice: "수요일 마일리지 2배 보너스 데이!",
     },
   ];
 

@@ -20,6 +20,7 @@ import {
   LogOut,
   KeyRound,
   Sparkles,
+  Ban,
 } from "lucide-react";
 
 interface TodaySession {
@@ -31,7 +32,7 @@ interface TodaySession {
   isOpen: boolean;
   maxCapacity: number;
   isDoubleMileage: boolean;
-  status: "READY" | "OPEN" | "CLOSED" | "CANCELLED";
+  status: "READY" | "OPEN" | "CLOSED" | "CANCELLED" | "OFF";
   cancelReason?: string;
   notice?: string;
   appliedCount?: number;
@@ -120,9 +121,10 @@ export default function AdminPage() {
   const [schedCode, setSchedCode] = useState("");
   const [schedMax, setSchedMax] = useState("30");
   const [schedDouble, setSchedDouble] = useState(false);
-  const [schedStatus, setSchedStatus] = useState<"READY" | "OPEN" | "CLOSED" | "CANCELLED">("READY");
+  const [schedStatus, setSchedStatus] = useState<"READY" | "OPEN" | "CLOSED" | "CANCELLED" | "OFF">("READY");
   const [schedNotice, setSchedNotice] = useState("");
   const [schedCancelReason, setSchedCancelReason] = useState("");
+  const [scheduleMonthFilter, setScheduleMonthFilter] = useState("ALL");
 
   // Check login from sessionStorage
   useEffect(() => {
@@ -474,7 +476,7 @@ export default function AdminPage() {
   };
 
   // Open Schedule Add Modal
-  const openAddSchedule = () => {
+  const openAddSchedule = (isOff: boolean = false) => {
     setEditingSchedule(null);
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
@@ -482,13 +484,13 @@ export default function AdminPage() {
     const days = ["일", "월", "화", "수", "목", "금", "토"];
     setSchedDate(dateStr);
     setSchedDay(days[tomorrow.getDay()]);
-    setSchedNum(String(scheduleList.length + 1));
-    setSchedCode(Math.floor(1000 + Math.random() * 9000).toString());
-    setSchedMax("30");
+    setSchedNum(String(scheduleList.filter((s) => s.status !== "OFF").length + 1));
+    setSchedCode(isOff ? "-" : Math.floor(1000 + Math.random() * 9000).toString());
+    setSchedMax(isOff ? "0" : "30");
     setSchedDouble(false);
-    setSchedStatus("READY");
+    setSchedStatus(isOff ? "OFF" : "READY");
     setSchedNotice("");
-    setSchedCancelReason("");
+    setSchedCancelReason(isOff ? "추석 연휴 휴무" : "");
     setShowScheduleModal(true);
   };
 
@@ -515,6 +517,11 @@ export default function AdminPage() {
       return;
     }
 
+    const isOffOrCancelled = schedStatus === "OFF" || schedStatus === "CANCELLED";
+    const reasonToSend = isOffOrCancelled
+      ? (schedCancelReason || (schedStatus === "OFF" ? "휴무일" : "기상 악화로 인한 취소"))
+      : undefined;
+
     try {
       if (editingSchedule) {
         // Edit
@@ -525,13 +532,13 @@ export default function AdminPage() {
             id: editingSchedule.id,
             date: schedDate,
             dayOfWeek: schedDay,
-            sessionNumber: schedNum,
-            code: schedCode,
-            maxCapacity: schedMax,
-            isDoubleMileage: schedDouble,
+            sessionNumber: schedStatus === "OFF" ? 0 : schedNum,
+            code: schedStatus === "OFF" ? "-" : schedCode,
+            maxCapacity: schedStatus === "OFF" ? 0 : schedMax,
+            isDoubleMileage: schedStatus === "OFF" ? false : schedDouble,
             status: schedStatus,
             notice: schedNotice,
-            cancelReason: schedStatus === "CANCELLED" ? (schedCancelReason || "기상 악화로 인한 취소") : undefined,
+            cancelReason: reasonToSend,
           }),
         });
         const data = await res.json();
@@ -551,13 +558,13 @@ export default function AdminPage() {
           body: JSON.stringify({
             date: schedDate,
             dayOfWeek: schedDay,
-            sessionNumber: schedNum,
-            code: schedCode,
-            maxCapacity: schedMax,
-            isDoubleMileage: schedDouble,
+            sessionNumber: schedStatus === "OFF" ? 0 : schedNum,
+            code: schedStatus === "OFF" ? "-" : schedCode,
+            maxCapacity: schedStatus === "OFF" ? 0 : schedMax,
+            isDoubleMileage: schedStatus === "OFF" ? false : schedDouble,
             status: schedStatus,
             notice: schedNotice,
-            cancelReason: schedStatus === "CANCELLED" ? (schedCancelReason || "기상 악화로 인한 취소") : undefined,
+            cancelReason: reasonToSend,
           }),
         });
         const data = await res.json();
@@ -1024,16 +1031,58 @@ export default function AdminPage() {
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <p className="text-xs sm:text-sm text-slate-600">
-              아침달리기 운영 일정을 새롭게 추가하거나, 마일리지 2배 데이 및 참가코드를 미리 수정할 수 있습니다.
+              아침달리기 운영 차시를 추가하거나, <strong>미운영일(휴무/시험 등)</strong>을 등록하여 학생들에게 안내할 수 있습니다.
             </p>
 
-            <button
-              onClick={openAddSchedule}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              새 차시 일정 추가
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => openAddSchedule(false)}
+                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                새 차시 추가
+              </button>
+              <button
+                onClick={() => openAddSchedule(true)}
+                className="px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+              >
+                <Ban className="w-4 h-4" />
+                미운영일(휴무) 등록
+              </button>
+            </div>
+          </div>
+
+          {/* Month Filter */}
+          <div className="flex items-center justify-between gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200 text-xs">
+            <span className="font-bold text-slate-600">월별 필터:</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => setScheduleMonthFilter("ALL")}
+                className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                  scheduleMonthFilter === "ALL"
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                전체 ({scheduleList.length})
+              </button>
+              {Array.from(new Set(scheduleList.map((s) => s.date.slice(0, 7))))
+                .sort()
+                .reverse()
+                .map((ym) => (
+                  <button
+                    key={ym}
+                    onClick={() => setScheduleMonthFilter(ym)}
+                    className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                      scheduleMonthFilter === ym
+                        ? "bg-blue-600 text-white shadow-sm"
+                        : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-100"
+                    }`}
+                  >
+                    {ym.replace("-", "년 ")}월
+                  </button>
+                ))}
+            </div>
           </div>
 
           <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
@@ -1047,83 +1096,117 @@ export default function AdminPage() {
                     <th className="py-3 px-4">신청 및 완주 현황</th>
                     <th className="py-3 px-4">마일리지 혜택</th>
                     <th className="py-3 px-4">진행 상태</th>
-                    <th className="py-3 px-4">안내 메모 / 취소 사유</th>
+                    <th className="py-3 px-4">안내 메모 / 취소 및 미운영 사유</th>
                     <th className="py-3 px-4 text-center">차시 현황 관리</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {scheduleList.map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3.5 px-4 font-black text-blue-700">
-                        제 {s.sessionNumber}차시
-                      </td>
-                      <td className="py-3.5 px-4 font-extrabold text-slate-900">
-                        {s.date} ({s.dayOfWeek})
-                      </td>
-                      <td className="py-3.5 px-4 font-black tracking-widest text-slate-800">
-                        {s.code}
-                      </td>
-                      <td className="py-3.5 px-4 font-semibold text-slate-700">
-                        신청 <strong className="text-blue-600">{s.appliedCount || 0}</strong> / {s.maxCapacity || 30}명
-                        <span className="text-emerald-600 ml-1.5 font-bold">
-                          (완주 {s.certifiedCount || 0}명)
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        {s.isDoubleMileage ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-black text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-full">
-                            <Sparkles className="w-3 h-3 text-purple-600" />
-                            2배 데이(x2)
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-xs">일반(1배)</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        {s.status === "OPEN" ? (
-                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                            신청 접수 중
-                          </span>
-                        ) : s.status === "CANCELLED" ? (
-                          <span className="text-[11px] font-bold text-rose-700 bg-rose-100 px-2.5 py-0.5 rounded-full">
-                            취소됨
-                          </span>
-                        ) : s.status === "CLOSED" ? (
-                          <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
-                            진행 완료
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full">
-                            준비 중
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-xs text-slate-500 max-w-xs truncate">
-                        {s.status === "CANCELLED" && s.cancelReason ? (
-                          <span className="text-rose-600 font-bold">⚠️ {s.cancelReason}</span>
-                        ) : (
-                          s.notice || "-"
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => openEditSchedule(s)}
-                            className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs transition-colors"
-                          >
-                            차시 현황 수정
-                          </button>
-                          <button
-                            onClick={() => handleDeleteSchedule(s.id, s.date)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                            title="일정 삭제"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {scheduleList
+                    .filter((s) => scheduleMonthFilter === "ALL" || s.date.startsWith(scheduleMonthFilter))
+                    .map((s) => {
+                      const isOff = s.status === "OFF";
+
+                      return (
+                        <tr
+                          key={s.id}
+                          className={`hover:bg-slate-50 transition-colors ${
+                            isOff ? "bg-amber-50/20" : ""
+                          }`}
+                        >
+                          <td className="py-3.5 px-4 font-black">
+                            {isOff ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-black text-amber-800 bg-amber-100 px-2 py-0.5 rounded-md">
+                                <Ban className="w-3 h-3 text-amber-600" />
+                                미운영일
+                              </span>
+                            ) : (
+                              <span className="text-blue-700">제 {s.sessionNumber}차시</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 font-extrabold text-slate-900">
+                            {s.date} ({s.dayOfWeek})
+                          </td>
+                          <td className="py-3.5 px-4 font-black tracking-widest text-slate-800">
+                            {isOff ? <span className="text-slate-400 font-normal">-</span> : s.code}
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-slate-700">
+                            {isOff ? (
+                              <span className="text-slate-400 font-normal">미운영</span>
+                            ) : (
+                              <>
+                                신청 <strong className="text-blue-600">{s.appliedCount || 0}</strong> / {s.maxCapacity || 30}명
+                                <span className="text-emerald-600 ml-1.5 font-bold">
+                                  (완주 {s.certifiedCount || 0}명)
+                                </span>
+                              </>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {isOff ? (
+                              <span className="text-slate-400 font-normal">-</span>
+                            ) : s.isDoubleMileage ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-black text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-full">
+                                <Sparkles className="w-3 h-3 text-purple-600" />
+                                2배 데이(x2)
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-xs">일반(1배)</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {isOff ? (
+                              <span className="text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                                🚫 미운영
+                              </span>
+                            ) : s.status === "OPEN" ? (
+                              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                                신청 접수 중
+                              </span>
+                            ) : s.status === "CANCELLED" ? (
+                              <span className="text-[11px] font-bold text-rose-700 bg-rose-100 px-2.5 py-0.5 rounded-full">
+                                취소됨
+                              </span>
+                            ) : s.status === "CLOSED" ? (
+                              <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                                진행 완료
+                              </span>
+                            ) : (
+                              <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                                준비 중
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-xs text-slate-500 max-w-xs truncate">
+                            {isOff ? (
+                              <span className="text-amber-800 font-bold">
+                                🚫 {s.cancelReason || "학교 학사 일정 및 휴무"}
+                              </span>
+                            ) : s.status === "CANCELLED" && s.cancelReason ? (
+                              <span className="text-rose-600 font-bold">⚠️ {s.cancelReason}</span>
+                            ) : (
+                              s.notice || "-"
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => openEditSchedule(s)}
+                                className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs transition-colors"
+                              >
+                                차시 현황 수정
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSchedule(s.id, s.date)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                title="일정 삭제"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
@@ -1380,80 +1463,119 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">
-                    차시 번호
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="예: 6"
-                    value={schedNum}
-                    onChange={(e) => setSchedNum(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
-                  />
-                </div>
+              {/* Status Selector */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  일정 구분 및 상태
+                </label>
+                <select
+                  value={schedStatus}
+                  onChange={(e) => setSchedStatus(e.target.value as any)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-extrabold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="READY">🏃 정규 운영 - 준비 중 (예정)</option>
+                  <option value="OPEN">🏃 정규 운영 - 신청 접수 중</option>
+                  <option value="CLOSED">🏃 정규 운영 - 진행 완료</option>
+                  <option value="CANCELLED">⚠️ 당일 취소 (우천/미세먼지)</option>
+                  <option value="OFF">🚫 아침달리기 미운영일 (휴무/시험/공휴일 등)</option>
+                </select>
+              </div>
 
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">
-                    참가코드 (4자리)
+              {/* OFF Status Reason Box */}
+              {schedStatus === "OFF" && (
+                <div className="space-y-2 p-4 bg-amber-50 border border-amber-200 rounded-2xl animate-fade-in">
+                  <label className="block text-xs font-bold text-amber-900">
+                    미운영 사유 (학생 캘린더 안내용) <span className="text-rose-500">*</span>
                   </label>
+                  <div className="flex flex-wrap gap-1.5 mb-1">
+                    {["추석 연휴", "중간고사 시험 기간", "기말고사 시험 기간", "재량휴업일", "개교기념일", "학교 축제/체육대회", "방학"].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => setSchedCancelReason(tag)}
+                        className="px-2 py-0.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 text-[11px] font-bold transition-colors"
+                      >
+                        +{tag}
+                      </button>
+                    ))}
+                  </div>
                   <input
                     type="text"
-                    maxLength={4}
-                    placeholder="예: 5678"
-                    value={schedCode}
-                    onChange={(e) => setSchedCode(e.target.value.replace(/\D/g, ""))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-extrabold tracking-widest text-center"
+                    placeholder="예: 추석 연휴 휴무, 중간고사 시험 기간 등"
+                    value={schedCancelReason}
+                    onChange={(e) => setSchedCancelReason(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-amber-300 text-xs font-bold text-amber-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    required
                   />
+                  <p className="text-[11px] text-amber-700">
+                    * 미운영일로 지정 시 학생들은 캘린더에서 휴무 사유를 확인하고 신청할 수 없습니다.
+                  </p>
                 </div>
-              </div>
+              )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">
-                    선착순 정원
-                  </label>
-                  <input
-                    type="number"
-                    value={schedMax}
-                    onChange={(e) => setSchedMax(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-center"
-                  />
-                </div>
+              {/* Normal Run Fields (only shown when not OFF) */}
+              {schedStatus !== "OFF" && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-slate-700">
+                        차시 번호
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="예: 6"
+                        value={schedNum}
+                        onChange={(e) => setSchedNum(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
+                      />
+                    </div>
 
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">
-                    상태
-                  </label>
-                  <select
-                    value={schedStatus}
-                    onChange={(e) => setSchedStatus(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
-                  >
-                    <option value="READY">준비 중</option>
-                    <option value="OPEN">신청 접수 중</option>
-                    <option value="CLOSED">진행 마감</option>
-                    <option value="CANCELLED">취소됨</option>
-                  </select>
-                </div>
-              </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-slate-700">
+                        참가코드 (4자리)
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={4}
+                        placeholder="예: 5678"
+                        value={schedCode}
+                        onChange={(e) => setSchedCode(e.target.value.replace(/\D/g, ""))}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-extrabold tracking-widest text-center"
+                      />
+                    </div>
+                  </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="schedDouble"
-                  checked={schedDouble}
-                  onChange={(e) => setSchedDouble(e.target.checked)}
-                  className="w-4 h-4 text-purple-600 rounded"
-                />
-                <label
-                  htmlFor="schedDouble"
-                  className="text-xs font-bold text-slate-700 cursor-pointer"
-                >
-                  ⚡ 마일리지 2배(x2) 보너스 데이로 지정
-                </label>
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-slate-700">
+                        선착순 정원
+                      </label>
+                      <input
+                        type="number"
+                        value={schedMax}
+                        onChange={(e) => setSchedMax(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-center"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-5">
+                      <input
+                        type="checkbox"
+                        id="schedDouble"
+                        checked={schedDouble}
+                        onChange={(e) => setSchedDouble(e.target.checked)}
+                        className="w-4 h-4 text-purple-600 rounded"
+                      />
+                      <label
+                        htmlFor="schedDouble"
+                        className="text-xs font-bold text-slate-700 cursor-pointer"
+                      >
+                        ⚡ 마일리지 2배(x2) 데이
+                      </label>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">

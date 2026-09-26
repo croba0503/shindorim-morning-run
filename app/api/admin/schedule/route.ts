@@ -51,15 +51,16 @@ export async function POST(req: Request) {
       );
     }
 
+    const isOff = status === "OFF";
     const newSession: Session = {
       id: `sess-${date}`,
       date,
       dayOfWeek: dayOfWeek || "월",
-      sessionNumber: sessionNumber ? parseInt(sessionNumber) : db.sessions.length + 1,
-      code: code || Math.floor(1000 + Math.random() * 9000).toString(),
-      isOpen: isOpen !== undefined ? Boolean(isOpen) : false,
-      maxCapacity: maxCapacity ? parseInt(maxCapacity) : 30,
-      isDoubleMileage: Boolean(isDoubleMileage),
+      sessionNumber: isOff ? 0 : (sessionNumber ? parseInt(sessionNumber) : db.sessions.filter((s) => s.status !== "OFF").length + 1),
+      code: isOff ? "-" : (code || Math.floor(1000 + Math.random() * 9000).toString()),
+      isOpen: isOff ? false : (isOpen !== undefined ? Boolean(isOpen) : false),
+      maxCapacity: isOff ? 0 : (maxCapacity ? parseInt(maxCapacity) : 30),
+      isDoubleMileage: isOff ? false : Boolean(isDoubleMileage),
       status: status || "READY",
       notice: notice || undefined,
       cancelReason: cancelReason || undefined,
@@ -111,7 +112,12 @@ export async function PATCH(req: Request) {
     if (isOpen !== undefined) session.isOpen = Boolean(isOpen);
     if (maxCapacity !== undefined) session.maxCapacity = parseInt(maxCapacity);
     if (isDoubleMileage !== undefined) session.isDoubleMileage = Boolean(isDoubleMileage);
-    if (status !== undefined) session.status = status;
+    if (status !== undefined) {
+      session.status = status;
+      if (status === "OFF") {
+        session.isOpen = false;
+      }
+    }
     if (notice !== undefined) session.notice = notice;
     if (cancelReason !== undefined) session.cancelReason = cancelReason;
 
