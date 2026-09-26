@@ -67,8 +67,19 @@ const DB_PATH = path.join(DATA_DIR, "database.json");
 
 // Upstash Redis / Vercel KV setup for Cloud Persistence
 let redisClient: Redis | null = null;
-const redisUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const redisToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+const redisUrl =
+  process.env.KV_REST_API_URL ||
+  process.env.UPSTASH_REDIS_REST_URL ||
+  process.env.STORAGE_REST_API_URL ||
+  process.env.STORAGE_KV_REST_API_URL ||
+  process.env.STORAGE_URL;
+
+const redisToken =
+  process.env.KV_REST_API_TOKEN ||
+  process.env.UPSTASH_REDIS_REST_TOKEN ||
+  process.env.STORAGE_REST_API_TOKEN ||
+  process.env.STORAGE_KV_REST_API_TOKEN ||
+  process.env.STORAGE_TOKEN;
 
 if (redisUrl && redisToken) {
   redisClient = new Redis({
