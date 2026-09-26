@@ -7,9 +7,17 @@ export async function GET() {
   try {
     const db = await readDb();
     const sorted = [...db.sessions].sort((a, b) => b.date.localeCompare(a.date));
+    const sessionsWithStats = sorted.map((s) => {
+      const recs = db.records.filter((r) => r.sessionId === s.id);
+      return {
+        ...s,
+        appliedCount: recs.length,
+        certifiedCount: recs.filter((r) => r.isCertified).length,
+      };
+    });
     return NextResponse.json({
       success: true,
-      sessions: sorted,
+      sessions: sessionsWithStats,
     });
   } catch (error) {
     console.error("Error in GET /api/admin/schedule:", error);
@@ -23,7 +31,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { date, dayOfWeek, sessionNumber, code, isOpen, maxCapacity, isDoubleMileage, status, notice } = body;
+    const { date, dayOfWeek, sessionNumber, code, isOpen, maxCapacity, isDoubleMileage, status, notice, cancelReason } = body;
 
     if (!date) {
       return NextResponse.json(
@@ -47,13 +55,14 @@ export async function POST(req: Request) {
       id: `sess-${date}`,
       date,
       dayOfWeek: dayOfWeek || "월",
-      sessionNumber: sessionNumber || db.sessions.length + 1,
+      sessionNumber: sessionNumber ? parseInt(sessionNumber) : db.sessions.length + 1,
       code: code || Math.floor(1000 + Math.random() * 9000).toString(),
       isOpen: isOpen !== undefined ? Boolean(isOpen) : false,
       maxCapacity: maxCapacity ? parseInt(maxCapacity) : 30,
       isDoubleMileage: Boolean(isDoubleMileage),
       status: status || "READY",
       notice: notice || undefined,
+      cancelReason: cancelReason || undefined,
     };
 
     db.sessions.push(newSession);

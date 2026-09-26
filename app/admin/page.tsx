@@ -34,6 +34,8 @@ interface TodaySession {
   status: "READY" | "OPEN" | "CLOSED" | "CANCELLED";
   cancelReason?: string;
   notice?: string;
+  appliedCount?: number;
+  certifiedCount?: number;
 }
 
 interface ApplicantRecord {
@@ -120,6 +122,7 @@ export default function AdminPage() {
   const [schedDouble, setSchedDouble] = useState(false);
   const [schedStatus, setSchedStatus] = useState<"READY" | "OPEN" | "CLOSED" | "CANCELLED">("READY");
   const [schedNotice, setSchedNotice] = useState("");
+  const [schedCancelReason, setSchedCancelReason] = useState("");
 
   // Check login from sessionStorage
   useEffect(() => {
@@ -485,6 +488,7 @@ export default function AdminPage() {
     setSchedDouble(false);
     setSchedStatus("READY");
     setSchedNotice("");
+    setSchedCancelReason("");
     setShowScheduleModal(true);
   };
 
@@ -499,6 +503,7 @@ export default function AdminPage() {
     setSchedDouble(s.isDoubleMileage);
     setSchedStatus(s.status);
     setSchedNotice(s.notice || "");
+    setSchedCancelReason(s.cancelReason || "");
     setShowScheduleModal(true);
   };
 
@@ -526,6 +531,7 @@ export default function AdminPage() {
             isDoubleMileage: schedDouble,
             status: schedStatus,
             notice: schedNotice,
+            cancelReason: schedStatus === "CANCELLED" ? (schedCancelReason || "기상 악화로 인한 취소") : undefined,
           }),
         });
         const data = await res.json();
@@ -551,6 +557,7 @@ export default function AdminPage() {
             isDoubleMileage: schedDouble,
             status: schedStatus,
             notice: schedNotice,
+            cancelReason: schedStatus === "CANCELLED" ? (schedCancelReason || "기상 악화로 인한 취소") : undefined,
           }),
         });
         const data = await res.json();
@@ -1037,15 +1044,16 @@ export default function AdminPage() {
                     <th className="py-3 px-4">차시</th>
                     <th className="py-3 px-4">날짜 (요일)</th>
                     <th className="py-3 px-4">참가코드</th>
+                    <th className="py-3 px-4">신청 및 완주 현황</th>
                     <th className="py-3 px-4">마일리지 혜택</th>
-                    <th className="py-3 px-4">상태</th>
-                    <th className="py-3 px-4">안내 메모</th>
-                    <th className="py-3 px-4 text-center">관리</th>
+                    <th className="py-3 px-4">진행 상태</th>
+                    <th className="py-3 px-4">안내 메모 / 취소 사유</th>
+                    <th className="py-3 px-4 text-center">차시 현황 관리</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {scheduleList.map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-50">
+                    <tr key={s.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3.5 px-4 font-black text-blue-700">
                         제 {s.sessionNumber}차시
                       </td>
@@ -1055,9 +1063,15 @@ export default function AdminPage() {
                       <td className="py-3.5 px-4 font-black tracking-widest text-slate-800">
                         {s.code}
                       </td>
+                      <td className="py-3.5 px-4 font-semibold text-slate-700">
+                        신청 <strong className="text-blue-600">{s.appliedCount || 0}</strong> / {s.maxCapacity || 30}명
+                        <span className="text-emerald-600 ml-1.5 font-bold">
+                          (완주 {s.certifiedCount || 0}명)
+                        </span>
+                      </td>
                       <td className="py-3.5 px-4">
                         {s.isDoubleMileage ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-black text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-black text-purple-700 bg-purple-100 px-2.5 py-0.5 rounded-full">
                             <Sparkles className="w-3 h-3 text-purple-600" />
                             2배 데이(x2)
                           </span>
@@ -1067,40 +1081,44 @@ export default function AdminPage() {
                       </td>
                       <td className="py-3.5 px-4">
                         {s.status === "OPEN" ? (
-                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                            접수 중
+                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                            신청 접수 중
                           </span>
                         ) : s.status === "CANCELLED" ? (
-                          <span className="text-[11px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">
+                          <span className="text-[11px] font-bold text-rose-700 bg-rose-100 px-2.5 py-0.5 rounded-full">
                             취소됨
                           </span>
                         ) : s.status === "CLOSED" ? (
-                          <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
-                            종료
+                          <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                            진행 완료
                           </span>
                         ) : (
-                          <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                          <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full">
                             준비 중
                           </span>
                         )}
                       </td>
                       <td className="py-3.5 px-4 text-xs text-slate-500 max-w-xs truncate">
-                        {s.notice || "-"}
+                        {s.status === "CANCELLED" && s.cancelReason ? (
+                          <span className="text-rose-600 font-bold">⚠️ {s.cancelReason}</span>
+                        ) : (
+                          s.notice || "-"
+                        )}
                       </td>
                       <td className="py-3.5 px-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => openEditSchedule(s)}
-                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
+                            className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs transition-colors"
                           >
-                            수정
+                            차시 현황 수정
                           </button>
                           <button
                             onClick={() => handleDeleteSchedule(s.id, s.date)}
-                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                             title="일정 삭제"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -1449,6 +1467,22 @@ export default function AdminPage() {
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
                 />
               </div>
+
+              {schedStatus === "CANCELLED" && (
+                <div className="space-y-1 p-3 bg-rose-50 border border-rose-200 rounded-xl animate-fade-in">
+                  <label className="block text-xs font-bold text-rose-700">
+                    취소 사유 입력 (학생 공지용)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="예: 우천으로 인한 안전 취소, 미세먼지 '매우나쁨' 등"
+                    value={schedCancelReason}
+                    onChange={(e) => setSchedCancelReason(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-rose-300 text-xs font-bold text-rose-900 bg-white focus:outline-none focus:ring-2 focus:ring-rose-400"
+                    required
+                  />
+                </div>
+              )}
 
               <div className="pt-2 flex gap-2">
                 <button
