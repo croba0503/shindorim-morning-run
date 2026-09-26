@@ -263,7 +263,7 @@ export default function ApplyPage() {
               </div>
               <input
                 type="text"
-                placeholder="예: 10301 (1학년 3반 1번)"
+                placeholder="예: 10101 (1학년 1반 1번)"
                 value={studentNumber}
                 onChange={(e) => setStudentNumber(e.target.value)}
                 maxLength={6}
@@ -287,7 +287,7 @@ export default function ApplyPage() {
               </div>
               <input
                 type="text"
-                placeholder="학생 본인 성명 (예: 김민준)"
+                placeholder="학생 본인 성명 (예: 홍길동)"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={10}

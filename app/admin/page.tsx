@@ -18,6 +18,8 @@ import {
   UserCheck,
   Calendar,
   LogOut,
+  KeyRound,
+  Sparkles,
 } from "lucide-react";
 
 interface TodaySession {
@@ -70,7 +72,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
 
   // Tab
-  const [activeTab, setActiveTab] = useState<"desk" | "all" | "notice">("desk");
+  const [activeTab, setActiveTab] = useState<"desk" | "schedule" | "all">("desk");
 
   // Editing Code Modal / Inline
   const [editingCode, setEditingCode] = useState(false);
@@ -99,6 +101,26 @@ export default function AdminPage() {
   const [allRecords, setAllRecords] = useState<ApplicantRecord[]>([]);
   const [allRecordsSearch, setAllRecordsSearch] = useState("");
 
+  // Password Change Modal
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPin, setCurrentPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [newPinConfirm, setNewPinConfirm] = useState("");
+  const [pwMsg, setPwMsg] = useState<{ text: string; isError: boolean } | null>(null);
+
+  // Schedule Management
+  const [scheduleList, setScheduleList] = useState<TodaySession[]>([]);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<TodaySession | null>(null);
+  const [schedDate, setSchedDate] = useState("");
+  const [schedDay, setSchedDay] = useState("월");
+  const [schedNum, setSchedNum] = useState("");
+  const [schedCode, setSchedCode] = useState("");
+  const [schedMax, setSchedMax] = useState("30");
+  const [schedDouble, setSchedDouble] = useState(false);
+  const [schedStatus, setSchedStatus] = useState<"READY" | "OPEN" | "CLOSED" | "CANCELLED">("READY");
+  const [schedNotice, setSchedNotice] = useState("");
+
   // Check login from sessionStorage
   useEffect(() => {
     const auth = sessionStorage.getItem("sdr_teacher_auth");
@@ -125,7 +147,7 @@ export default function AdminPage() {
       } else {
         setAuthError(data.message || "비밀번호가 올바르지 않습니다.");
       }
-    } catch (err) {
+    } catch {
       setAuthError("인증 요청 실패");
     }
   };
@@ -166,9 +188,25 @@ export default function AdminPage() {
     }
   };
 
+  const fetchSchedules = async () => {
+    try {
+      const res = await fetch("/api/admin/schedule");
+      const data = await res.json();
+      if (data.success) {
+        setScheduleList(data.sessions);
+      }
+    } catch (err) {
+      console.error("Schedules fetch error:", err);
+    }
+  };
+
   useEffect(() => {
-    if (isAuthenticated && activeTab === "all") {
-      fetchAllRecords();
+    if (isAuthenticated) {
+      if (activeTab === "all") {
+        fetchAllRecords();
+      } else if (activeTab === "schedule") {
+        fetchSchedules();
+      }
     }
   }, [isAuthenticated, activeTab, allRecordsSearch]);
 
@@ -186,7 +224,7 @@ export default function AdminPage() {
       if (data.success) {
         setSession(data.session);
       }
-    } catch (err) {
+    } catch {
       alert("상태 변경에 실패했습니다.");
     }
   };
@@ -204,7 +242,7 @@ export default function AdminPage() {
       if (data.success) {
         setSession(data.session);
       }
-    } catch (err) {
+    } catch {
       alert("마일리지 설정 변경에 실패했습니다.");
     }
   };
@@ -226,7 +264,7 @@ export default function AdminPage() {
         setEditingCode(false);
         alert(`참가코드가 ${newCodeInput.trim()}(으)로 변경되었습니다.`);
       }
-    } catch (err) {
+    } catch {
       alert("코드 변경 실패");
     }
   };
@@ -245,7 +283,7 @@ export default function AdminPage() {
         setNewCodeInput(randomCode);
         alert(`새 참가코드 [${randomCode}]가 발급되었습니다.`);
       }
-    } catch (err) {
+    } catch {
       alert("랜덤 코드 생성 실패");
     }
   };
@@ -271,7 +309,7 @@ export default function AdminPage() {
         alert(data.message);
         fetchAdminData();
       }
-    } catch (err) {
+    } catch {
       alert("취소 처리 실패");
     }
   };
@@ -289,7 +327,7 @@ export default function AdminPage() {
         alert(data.message);
         fetchAdminData();
       }
-    } catch (err) {
+    } catch {
       alert("복구 실패");
     }
   };
@@ -334,7 +372,7 @@ export default function AdminPage() {
       } else {
         alert(data.message || "인증 처리 실패");
       }
-    } catch (err) {
+    } catch {
       alert("인증 요청 오류");
     } finally {
       setCertLoading(false);
@@ -372,7 +410,7 @@ export default function AdminPage() {
       } else {
         alert(data.message || "수동 등록 실패");
       }
-    } catch (err) {
+    } catch {
       alert("수동 등록 요청 오류");
     }
   };
@@ -390,8 +428,162 @@ export default function AdminPage() {
         fetchAdminData();
         if (activeTab === "all") fetchAllRecords();
       }
-    } catch (err) {
+    } catch {
       alert("기록 삭제 오류");
+    }
+  };
+
+  // Change Password Submit
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwMsg(null);
+
+    if (newPin !== newPinConfirm) {
+      setPwMsg({ text: "새 비밀번호가 일치하지 않습니다.", isError: true });
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/admin/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPin,
+          newPin,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPwMsg({ text: data.message, isError: false });
+        setTimeout(() => {
+          setShowPasswordModal(false);
+          setCurrentPin("");
+          setNewPin("");
+          setNewPinConfirm("");
+          setPwMsg(null);
+        }, 1200);
+      } else {
+        setPwMsg({ text: data.message || "비밀번호 변경 실패", isError: true });
+      }
+    } catch {
+      setPwMsg({ text: "서버 오류가 발생했습니다.", isError: true });
+    }
+  };
+
+  // Open Schedule Add Modal
+  const openAddSchedule = () => {
+    setEditingSchedule(null);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateStr = tomorrow.toISOString().slice(0, 10);
+    const days = ["일", "월", "화", "수", "목", "금", "토"];
+    setSchedDate(dateStr);
+    setSchedDay(days[tomorrow.getDay()]);
+    setSchedNum(String(scheduleList.length + 1));
+    setSchedCode(Math.floor(1000 + Math.random() * 9000).toString());
+    setSchedMax("30");
+    setSchedDouble(false);
+    setSchedStatus("READY");
+    setSchedNotice("");
+    setShowScheduleModal(true);
+  };
+
+  // Open Schedule Edit Modal
+  const openEditSchedule = (s: TodaySession) => {
+    setEditingSchedule(s);
+    setSchedDate(s.date);
+    setSchedDay(s.dayOfWeek);
+    setSchedNum(String(s.sessionNumber));
+    setSchedCode(s.code);
+    setSchedMax(String(s.maxCapacity || 30));
+    setSchedDouble(s.isDoubleMileage);
+    setSchedStatus(s.status);
+    setSchedNotice(s.notice || "");
+    setShowScheduleModal(true);
+  };
+
+  // Save Schedule Submit
+  const handleSaveSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!schedDate) {
+      alert("날짜를 입력해주세요.");
+      return;
+    }
+
+    try {
+      if (editingSchedule) {
+        // Edit
+        const res = await fetch("/api/admin/schedule", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: editingSchedule.id,
+            date: schedDate,
+            dayOfWeek: schedDay,
+            sessionNumber: schedNum,
+            code: schedCode,
+            maxCapacity: schedMax,
+            isDoubleMileage: schedDouble,
+            status: schedStatus,
+            notice: schedNotice,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(data.message);
+          setShowScheduleModal(false);
+          fetchSchedules();
+          fetchAdminData();
+        } else {
+          alert(data.message || "수정 실패");
+        }
+      } else {
+        // Add
+        const res = await fetch("/api/admin/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: schedDate,
+            dayOfWeek: schedDay,
+            sessionNumber: schedNum,
+            code: schedCode,
+            maxCapacity: schedMax,
+            isDoubleMileage: schedDouble,
+            status: schedStatus,
+            notice: schedNotice,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(data.message);
+          setShowScheduleModal(false);
+          fetchSchedules();
+          fetchAdminData();
+        } else {
+          alert(data.message || "추가 실패");
+        }
+      }
+    } catch {
+      alert("일정 저장 오류");
+    }
+  };
+
+  // Delete Schedule
+  const handleDeleteSchedule = async (id: string, date: string) => {
+    if (!confirm(`정말 ${date} 일정을 삭제하시겠습니까?`)) return;
+    try {
+      const res = await fetch(`/api/admin/schedule?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        fetchSchedules();
+      } else {
+        alert(data.message || "삭제 실패");
+      }
+    } catch {
+      alert("일정 삭제 오류");
     }
   };
 
@@ -438,7 +630,7 @@ export default function AdminPage() {
           <form onSubmit={handleLogin} className="space-y-4">
             <input
               type="password"
-              placeholder="관리자 핀번호 (초기값: sdr1234!)"
+              placeholder="관리자 핀번호를 입력하세요"
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border border-slate-200 text-center text-sm font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -452,7 +644,7 @@ export default function AdminPage() {
           </form>
 
           <p className="text-[11px] text-slate-400">
-            * 비밀번호 초기 분실 시 담당 교사에게 문의하세요.
+            * 비밀번호 분실 시 시스템 관리자에게 문의하세요.
           </p>
         </div>
       </div>
@@ -473,7 +665,15 @@ export default function AdminPage() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-2">
+          <button
+            onClick={() => setShowPasswordModal(true)}
+            className="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-bold text-xs flex items-center gap-1.5 transition-colors"
+            title="관리자 비밀번호 변경"
+          >
+            <KeyRound className="w-3.5 h-3.5 text-blue-600" />
+            비밀번호 변경
+          </button>
           <button
             onClick={fetchAdminData}
             disabled={loading}
@@ -666,10 +866,10 @@ export default function AdminPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 gap-4">
+      <div className="flex border-b border-slate-200 gap-2 sm:gap-4 overflow-x-auto">
         <button
           onClick={() => setActiveTab("desk")}
-          className={`pb-3 text-sm font-black transition-colors flex items-center gap-1.5 border-b-2 ${
+          className={`pb-3 text-xs sm:text-sm font-black transition-colors flex items-center gap-1.5 border-b-2 whitespace-nowrap ${
             activeTab === "desk"
               ? "border-blue-600 text-blue-600"
               : "border-transparent text-slate-500 hover:text-slate-900"
@@ -679,14 +879,25 @@ export default function AdminPage() {
           오늘 신청자 완주 인증 데스크 ({applicants.length}명)
         </button>
         <button
-          onClick={() => setActiveTab("all")}
-          className={`pb-3 text-sm font-black transition-colors flex items-center gap-1.5 border-b-2 ${
-            activeTab === "all"
+          onClick={() => setActiveTab("schedule")}
+          className={`pb-3 text-xs sm:text-sm font-black transition-colors flex items-center gap-1.5 border-b-2 whitespace-nowrap ${
+            activeTab === "schedule"
               ? "border-blue-600 text-blue-600"
               : "border-transparent text-slate-500 hover:text-slate-900"
           }`}
         >
           <Calendar className="w-4 h-4" />
+          운영 일정 관리 (추가/수정)
+        </button>
+        <button
+          onClick={() => setActiveTab("all")}
+          className={`pb-3 text-xs sm:text-sm font-black transition-colors flex items-center gap-1.5 border-b-2 whitespace-nowrap ${
+            activeTab === "all"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-slate-500 hover:text-slate-900"
+          }`}
+        >
+          <Search className="w-4 h-4" />
           전체 누적 기록 및 학생 관리
         </button>
       </div>
@@ -801,7 +1012,108 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Tab Content 2: All Records & Management */}
+      {/* Tab Content 2: Schedule Management (NEW!) */}
+      {activeTab === "schedule" && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <p className="text-xs sm:text-sm text-slate-600">
+              아침달리기 운영 일정을 새롭게 추가하거나, 마일리지 2배 데이 및 참가코드를 미리 수정할 수 있습니다.
+            </p>
+
+            <button
+              onClick={openAddSchedule}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              새 차시 일정 추가
+            </button>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
+                  <tr>
+                    <th className="py-3 px-4">차시</th>
+                    <th className="py-3 px-4">날짜 (요일)</th>
+                    <th className="py-3 px-4">참가코드</th>
+                    <th className="py-3 px-4">마일리지 혜택</th>
+                    <th className="py-3 px-4">상태</th>
+                    <th className="py-3 px-4">안내 메모</th>
+                    <th className="py-3 px-4 text-center">관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {scheduleList.map((s) => (
+                    <tr key={s.id} className="hover:bg-slate-50">
+                      <td className="py-3.5 px-4 font-black text-blue-700">
+                        제 {s.sessionNumber}차시
+                      </td>
+                      <td className="py-3.5 px-4 font-extrabold text-slate-900">
+                        {s.date} ({s.dayOfWeek})
+                      </td>
+                      <td className="py-3.5 px-4 font-black tracking-widest text-slate-800">
+                        {s.code}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {s.isDoubleMileage ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-black text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                            <Sparkles className="w-3 h-3 text-purple-600" />
+                            2배 데이(x2)
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">일반(1배)</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        {s.status === "OPEN" ? (
+                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                            접수 중
+                          </span>
+                        ) : s.status === "CANCELLED" ? (
+                          <span className="text-[11px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full">
+                            취소됨
+                          </span>
+                        ) : s.status === "CLOSED" ? (
+                          <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                            종료
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                            준비 중
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-xs text-slate-500 max-w-xs truncate">
+                        {s.notice || "-"}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => openEditSchedule(s)}
+                            className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"
+                          >
+                            수정
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSchedule(s.id, s.date)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                            title="일정 삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Content 3: All Records & Management */}
       {activeTab === "all" && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
@@ -891,6 +1203,269 @@ export default function AdminPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Change Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 animate-scale-up">
+            <div className="bg-slate-900 p-5 text-white flex justify-between items-center">
+              <div>
+                <span className="text-xs font-bold text-blue-400">보안 설정</span>
+                <h3 className="text-lg font-black">교사 비밀번호 변경</h3>
+              </div>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="p-1 rounded-lg hover:bg-white/20 text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="p-6 space-y-4">
+              {pwMsg && (
+                <div
+                  className={`p-3 rounded-xl text-xs font-bold ${
+                    pwMsg.isError
+                      ? "bg-rose-50 text-rose-700 border border-rose-200"
+                      : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  }`}
+                >
+                  {pwMsg.text}
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  현재 비밀번호
+                </label>
+                <input
+                  type="password"
+                  placeholder="현재 비밀번호 입력"
+                  value={currentPin}
+                  onChange={(e) => setCurrentPin(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  새 비밀번호 (4자리 이상)
+                </label>
+                <input
+                  type="password"
+                  placeholder="새 비밀번호 입력"
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  새 비밀번호 확인
+                </label>
+                <input
+                  type="password"
+                  placeholder="새 비밀번호 다시 입력"
+                  value={newPinConfirm}
+                  onChange={(e) => setNewPinConfirm(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  required
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="w-1/3 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className="w-2/3 py-2.5 rounded-xl bg-blue-600 text-white font-black text-xs hover:bg-blue-700"
+                >
+                  비밀번호 변경
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Add / Edit Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 animate-scale-up">
+            <div className="bg-gradient-to-r from-blue-700 to-indigo-700 p-5 text-white flex justify-between items-center">
+              <div>
+                <span className="text-xs font-bold text-blue-200">
+                  {editingSchedule ? "차시 일정 수정" : "새 차시 일정 추가"}
+                </span>
+                <h3 className="text-lg font-black">
+                  {schedDate ? `${schedDate} (${schedDay})` : "일정 설정"}
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="p-1 rounded-lg hover:bg-white/20 text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSchedule} className="p-6 space-y-3.5">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    날짜 (YYYY-MM-DD) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={schedDate}
+                    onChange={(e) => {
+                      setSchedDate(e.target.value);
+                      if (e.target.value) {
+                        const days = ["일", "월", "화", "수", "목", "금", "토"];
+                        const d = new Date(e.target.value);
+                        setSchedDay(days[d.getDay()]);
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    요일
+                  </label>
+                  <select
+                    value={schedDay}
+                    onChange={(e) => setSchedDay(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none"
+                  >
+                    <option value="월">월요일</option>
+                    <option value="화">화요일</option>
+                    <option value="수">수요일</option>
+                    <option value="목">목요일</option>
+                    <option value="금">금요일</option>
+                    <option value="토">토요일</option>
+                    <option value="일">일요일</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    차시 번호
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="예: 6"
+                    value={schedNum}
+                    onChange={(e) => setSchedNum(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    참가코드 (4자리)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    placeholder="예: 5678"
+                    value={schedCode}
+                    onChange={(e) => setSchedCode(e.target.value.replace(/\D/g, ""))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-extrabold tracking-widest text-center"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    선착순 정원
+                  </label>
+                  <input
+                    type="number"
+                    value={schedMax}
+                    onChange={(e) => setSchedMax(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-center"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">
+                    상태
+                  </label>
+                  <select
+                    value={schedStatus}
+                    onChange={(e) => setSchedStatus(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
+                  >
+                    <option value="READY">준비 중</option>
+                    <option value="OPEN">신청 접수 중</option>
+                    <option value="CLOSED">진행 마감</option>
+                    <option value="CANCELLED">취소됨</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="schedDouble"
+                  checked={schedDouble}
+                  onChange={(e) => setSchedDouble(e.target.checked)}
+                  className="w-4 h-4 text-purple-600 rounded"
+                />
+                <label
+                  htmlFor="schedDouble"
+                  className="text-xs font-bold text-slate-700 cursor-pointer"
+                >
+                  ⚡ 마일리지 2배(x2) 보너스 데이로 지정
+                </label>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  안내 메모 (선택 사항)
+                </label>
+                <input
+                  type="text"
+                  placeholder="예: 수요일 마일리지 2배 보너스 데이!"
+                  value={schedNotice}
+                  onChange={(e) => setSchedNotice(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleModal(false)}
+                  className="w-1/3 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  className="w-2/3 py-2.5 rounded-xl bg-blue-600 text-white font-black text-xs hover:bg-blue-700"
+                >
+                  {editingSchedule ? "수정 내용 저장" : "새 차시 등록"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1068,7 +1643,7 @@ export default function AdminPage() {
                   </label>
                   <input
                     type="text"
-                    placeholder="10301"
+                    placeholder="10101"
                     value={manualNum}
                     onChange={(e) => setManualNum(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
