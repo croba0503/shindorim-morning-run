@@ -93,9 +93,9 @@ export default function MyRecordPage() {
       fetchRecords(savedNum, savedName);
     } else {
       // Default sample view for quick exploration
-      setStudentNumber("10312");
-      setName("이준서");
-      fetchRecords("10312", "이준서");
+      setStudentNumber("10101");
+      setName("홍길동");
+      fetchRecords("10101", "홍길동");
     }
   }, []);
 
@@ -127,11 +127,11 @@ export default function MyRecordPage() {
       >
         <div className="w-full sm:w-1/3">
           <label className="block text-[11px] font-bold text-slate-600 mb-1">
-            학번 (예: 10312)
+            학번 (예: 10101)
           </label>
           <input
             type="text"
-            placeholder="학번 입력"
+            placeholder="예: 10101 (1학년 1반 1번)"
             value={studentNumber}
             onChange={(e) => setStudentNumber(e.target.value)}
             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -140,11 +140,11 @@ export default function MyRecordPage() {
 
         <div className="w-full sm:w-1/3">
           <label className="block text-[11px] font-bold text-slate-600 mb-1">
-            이름 (예: 이준서)
+            이름 (예: 홍길동)
           </label>
           <input
             type="text"
-            placeholder="이름 입력"
+            placeholder="학생 본인 성명 (예: 홍길동)"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"

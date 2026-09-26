@@ -111,6 +111,7 @@ export function formatDuration(seconds: number): string {
 
 export function getInitialData(): AppDatabase {
   const students: Student[] = [
+    { id: "stu-10101", studentNumber: "10101", name: "홍길동", grade: 1, createdAt: "2026-09-01T08:00:00Z" },
     { id: "stu-10105", studentNumber: "10105", name: "김민준", grade: 1, createdAt: "2026-09-01T08:00:00Z" },
     { id: "stu-10312", studentNumber: "10312", name: "이준서", grade: 1, createdAt: "2026-09-01T08:00:00Z" },
     { id: "stu-10521", studentNumber: "10521", name: "정우진", grade: 1, createdAt: "2026-09-01T08:00:00Z" },
@@ -186,6 +187,8 @@ export function getInitialData(): AppDatabase {
   ];
 
   const records: RunRecord[] = [
+    { id: "rec-0", sessionId: "sess-2026-09-21", sessionDate: "2026-09-21", studentId: "stu-10101", studentNumber: "10101", studentName: "홍길동", appliedAt: "2026-09-21T07:50:00Z", isCertified: true, distanceKm: 2.5, durationSeconds: 750, pace: "5'00\"", mileage: 2.5, certifiedAt: "2026-09-21T08:18:00Z" },
+    { id: "rec-0b", sessionId: "sess-2026-09-23", sessionDate: "2026-09-23", studentId: "stu-10101", studentNumber: "10101", studentName: "홍길동", appliedAt: "2026-09-23T07:49:00Z", isCertified: true, distanceKm: 3.0, durationSeconds: 900, pace: "5'00\"", mileage: 6.0, certifiedAt: "2026-09-23T08:18:00Z" },
     { id: "rec-1", sessionId: "sess-2026-09-21", sessionDate: "2026-09-21", studentId: "stu-10312", studentNumber: "10312", studentName: "이준서", appliedAt: "2026-09-21T07:52:00Z", isCertified: true, distanceKm: 2.4, durationSeconds: 780, pace: "5'25\"", mileage: 2.4, certifiedAt: "2026-09-21T08:20:00Z" },
     { id: "rec-2", sessionId: "sess-2026-09-21", sessionDate: "2026-09-21", studentId: "stu-20104", studentNumber: "20104", studentName: "박서연", appliedAt: "2026-09-21T07:53:00Z", isCertified: true, distanceKm: 3.6, durationSeconds: 1140, pace: "5'16\"", mileage: 3.6, certifiedAt: "2026-09-21T08:22:00Z" },
     { id: "rec-3", sessionId: "sess-2026-09-21", sessionDate: "2026-09-21", studentId: "stu-20215", studentNumber: "20215", studentName: "최민호", appliedAt: "2026-09-21T07:54:00Z", isCertified: true, distanceKm: 2.6, durationSeconds: 676, pace: "4'20\"", mileage: 2.6, certifiedAt: "2026-09-21T08:18:00Z" },
