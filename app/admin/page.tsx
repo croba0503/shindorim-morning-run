@@ -165,7 +165,7 @@ export default function AdminPage() {
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/session");
+      const res = await fetch("/api/admin/session", { cache: "no-store" });
       const data = await res.json();
       if (data.success) {
         setSession(data.session);
@@ -183,7 +183,7 @@ export default function AdminPage() {
 
   const fetchAllRecords = async () => {
     try {
-      const res = await fetch(`/api/admin/records?search=${encodeURIComponent(allRecordsSearch)}`);
+      const res = await fetch(`/api/admin/records?search=${encodeURIComponent(allRecordsSearch)}`, { cache: "no-store" });
       const data = await res.json();
       if (data.success) {
         setAllRecords(data.records);
@@ -195,7 +195,7 @@ export default function AdminPage() {
 
   const fetchSchedules = async () => {
     try {
-      const res = await fetch("/api/admin/schedule");
+      const res = await fetch("/api/admin/schedule", { cache: "no-store" });
       const data = await res.json();
       if (data.success) {
         setScheduleList(data.sessions);

@@ -67,7 +67,7 @@ export default function ApplyPage() {
 
   const fetchTodaySession = async () => {
     try {
-      const res = await fetch("/api/session/today");
+      const res = await fetch("/api/session/today", { cache: "no-store" });
       const json = await res.json();
       if (json.success) {
         setData(json);

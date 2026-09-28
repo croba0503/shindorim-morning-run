@@ -392,16 +392,17 @@ export async function writeDb(data: AppDatabase): Promise<void> {
   }
 }
 
-// Helper to get or generate today's session
-export function getOrCreateTodaySession(db: AppDatabase): Session {
+// Helper to get today's date in KST (Asia/Seoul)
+export function getTodayKST(): { todayStr: string; dayOfWeek: string } {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const date = String(now.getDate()).padStart(2, "0");
-  const todayStr = `${year}-${month}-${date}`;
+  const todayStr = now.toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+  const dayOfWeek = now.toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", weekday: "short" });
+  return { todayStr, dayOfWeek };
+}
 
-  const days = ["일", "월", "화", "수", "목", "금", "토"];
-  const dayOfWeek = days[now.getDay()];
+// Helper to get or generate today's session (persisted permanently)
+export async function getOrCreateTodaySession(db: AppDatabase): Promise<Session> {
+  const { todayStr, dayOfWeek } = getTodayKST();
 
   let session = db.sessions.find((s) => s.date === todayStr);
   if (!session) {
@@ -410,7 +411,7 @@ export function getOrCreateTodaySession(db: AppDatabase): Session {
       id: `sess-${todayStr}`,
       date: todayStr,
       dayOfWeek,
-      sessionNumber: db.sessions.length + 1,
+      sessionNumber: db.sessions.filter((s) => s.status !== "OFF").length + 1,
       code: randomCode,
       isOpen: true,
       maxCapacity: 30,
@@ -418,6 +419,7 @@ export function getOrCreateTodaySession(db: AppDatabase): Session {
       status: "OPEN",
     };
     db.sessions.push(session);
+    await writeDb(db);
   }
 
   return session;

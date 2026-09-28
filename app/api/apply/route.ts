@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     }
 
     const db = await readDb();
-    const session = getOrCreateTodaySession(db);
+    const session = await getOrCreateTodaySession(db);
 
     // Check if session is open
     if (!session.isOpen || session.status !== "OPEN") {

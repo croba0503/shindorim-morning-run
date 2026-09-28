@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { action, reason, noticeText } = body;
     const db = await readDb();
-    const session = getOrCreateTodaySession(db);
+    const session = await getOrCreateTodaySession(db);
 
     if (action === "CANCEL_TODAY") {
       // Cancel today's session due to weather/fine dust

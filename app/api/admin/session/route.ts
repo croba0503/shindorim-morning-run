@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const db = await readDb();
-    const session = getOrCreateTodaySession(db);
+    const session = await getOrCreateTodaySession(db);
 
     const todayRecords = db.records
       .filter((r) => r.sessionId === session.id)
@@ -40,7 +40,7 @@ export async function PATCH(req: Request) {
   try {
     const body = await req.json();
     const db = await readDb();
-    const session = getOrCreateTodaySession(db);
+    const session = await getOrCreateTodaySession(db);
 
     if (body.code !== undefined) {
       const trimmedCode = String(body.code).trim();

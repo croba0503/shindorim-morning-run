@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const db = await readDb();
-    const session = getOrCreateTodaySession(db);
+    const session = await getOrCreateTodaySession(db);
 
     const todayRecords = db.records.filter((r) => r.sessionId === session.id);
     const applicantsCount = todayRecords.length;

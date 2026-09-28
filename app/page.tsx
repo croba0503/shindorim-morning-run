@@ -42,7 +42,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/session/today")
+    fetch("/api/session/today", { cache: "no-store" })
       .then((res) => res.json())
       .then((res) => {
         if (res.success) {

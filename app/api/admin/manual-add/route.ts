@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     }
 
     const db = await readDb();
-    const session = getOrCreateTodaySession(db);
+    const session = await getOrCreateTodaySession(db);
 
     // Find or create student
     let student = db.students.find((s) => s.studentNumber === trimmedNum);
