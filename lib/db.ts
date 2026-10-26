@@ -253,6 +253,29 @@ export function getInitialData(): AppDatabase {
       status: "READY",
       notice: "수요일 마일리지 2배 보너스 데이!",
     },
+    {
+      id: "sess-2026-10-09",
+      date: "2026-10-09",
+      dayOfWeek: "금",
+      sessionNumber: 0,
+      code: "-",
+      isOpen: false,
+      maxCapacity: 0,
+      isDoubleMileage: false,
+      status: "OFF",
+      cancelReason: "한글날 공휴일",
+    },
+    {
+      id: "sess-2026-10-16",
+      date: "2026-10-16",
+      dayOfWeek: "금",
+      sessionNumber: 10,
+      code: "5566",
+      isOpen: false,
+      maxCapacity: 30,
+      isDoubleMileage: false,
+      status: "READY",
+    },
   ];
 
   const records: RunRecord[] = [
@@ -295,7 +318,7 @@ export function getInitialData(): AppDatabase {
     {
       id: "not-1",
       title: "🏃‍♂️ 2026학년도 신도림중 아침달리기 프로젝트 개막!",
-      content: "월, 화, 수, 목 07:50~08:25 운동장에서 함께 달려요. 선착순 30명, 나이키런 2km 완주 시 마일리지 적립!",
+      content: "월, 화, 수, 목, 금 07:50~08:25 운동장에서 함께 달려요. 선착순 30명, 나이키런 2km 완주 시 마일리지 적립!",
       type: "NORMAL",
       isActive: true,
       createdAt: "2026-09-01T00:00:00Z",

@@ -241,7 +241,7 @@ export default function HomePage() {
                 <div>
                   <span className="font-bold text-slate-800">운영 일시: </span>
                   <span className="text-slate-600">
-                    매주 월, 화, 수, 목, 금 07:50 ~ 08:25 (수업 시작 전, 공휴일 제외)
+                    매주 월, 화, 수, 목, 금 07:50 ~ 08:25 (공휴일 제외)
                   </span>
                 </div>
               </li>
@@ -250,7 +250,7 @@ export default function HomePage() {
                 <div>
                   <span className="font-bold text-slate-800">운영 장소: </span>
                   <span className="text-slate-600">
-                    신도림중학교 대운동장 (본부석: 스탠드 중앙)
+                    신도림중학교 운동장 (본부석: 창조관 앞)
                   </span>
                 </div>
               </li>
