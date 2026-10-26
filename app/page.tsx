@@ -79,7 +79,7 @@ export default function HomePage() {
           </h1>
 
           <p className="text-slate-300 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
-            매주 월·화·수·목 아침, 나이키런(NRC) 앱과 함께 운동장 2km를 완주하고
+            매주 월·화·수·목·금 아침, 나이키런(NRC) 앱과 함께 운동장 2km를 완주하고
             마일리지 적립과 명예의 전당 랭킹에 도전하세요!
           </p>
 
@@ -241,7 +241,7 @@ export default function HomePage() {
                 <div>
                   <span className="font-bold text-slate-800">운영 일시: </span>
                   <span className="text-slate-600">
-                    매주 <strong>월, 화, 수, 목 아침 07:50 ~ 08:25</strong> (수업 시작 전)
+                    매주 월, 화, 수, 목, 금 07:50 ~ 08:25 (수업 시작 전, 공휴일 제외)
                   </span>
                 </div>
               </li>

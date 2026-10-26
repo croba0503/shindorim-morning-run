@@ -188,7 +188,7 @@ export default function SchedulePage() {
             아침달리기 월별 일정
           </h1>
           <p className="text-xs sm:text-sm text-slate-500">
-            매주 <strong>월, 화, 수, 목요일 아침 07:50 ~ 08:25</strong> 운영 현황 및 미운영일을 확인하세요.
+            매주 월~금 운영 (공휴일 제외) 현황 및 미운영일을 확인하세요.
           </p>
         </div>
 
@@ -320,8 +320,7 @@ export default function SchedulePage() {
                 const isSelected = selectedDateStr === item.dateStr;
                 const isToday = item.dateStr === todayStr;
                 const isWeekend = item.dayOfWeekIndex === 0 || item.dayOfWeekIndex === 6;
-                const isFriday = item.dayOfWeekIndex === 5;
-                const isRegularNonRunDay = isWeekend || isFriday;
+                const isRegularNonRunDay = isWeekend;
 
                 const isOff = session?.status === "OFF";
                 const isOpen = session?.status === "OPEN";
@@ -504,7 +503,7 @@ export default function SchedulePage() {
                       </strong>
                     </p>
                     <p className="text-xs text-slate-400">
-                      * 운영일(월~목) 아침 07:50에 운동장에서 만나요!
+                      * 운영일(월~금) 아침 07:50에 운동장에서 만나요!
                     </p>
                   </div>
                 ) : (
@@ -573,7 +572,7 @@ export default function SchedulePage() {
                 )
               ) : (
                 <div className="bg-white/5 rounded-2xl p-5 text-slate-400 text-xs sm:text-sm">
-                  해당 날짜에 등록된 특이사항이 없습니다. 신도림중 아침달리기는 기본적으로 매주 월~목요일 아침에 진행됩니다.
+                  해당 날짜에 등록된 특이사항이 없습니다. 신도림중 아침달리기는 기본적으로 매주 월~금요일(공휴일 제외) 아침에 진행됩니다.
                 </div>
               )}
             </div>

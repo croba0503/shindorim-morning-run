@@ -104,6 +104,16 @@ export default function AdminPage() {
   const [allRecords, setAllRecords] = useState<ApplicantRecord[]>([]);
   const [allRecordsSearch, setAllRecordsSearch] = useState("");
 
+  // History Record Edit (Post-Certification)
+  const [editingHistoryRecord, setEditingHistoryRecord] = useState<ApplicantRecord | null>(null);
+  const [editHistDist, setEditHistDist] = useState("2.0");
+  const [editHistMin, setEditHistMin] = useState("12");
+  const [editHistSec, setEditHistSec] = useState("00");
+  const [editHistMileage, setEditHistMileage] = useState("");
+  const [editHistCertified, setEditHistCertified] = useState(false);
+  const [editHistNote, setEditHistNote] = useState("");
+  const [editHistLoading, setEditHistLoading] = useState(false);
+
   // Password Change Modal
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [currentPin, setCurrentPin] = useState("");
@@ -420,6 +430,57 @@ export default function AdminPage() {
     }
   };
 
+  // Open Edit History Record Modal
+  const openEditHistory = (record: ApplicantRecord) => {
+    setEditingHistoryRecord(record);
+    setEditHistDist(record.distanceKm > 0 ? String(record.distanceKm) : "2.0");
+    const totalSec = record.durationSeconds || 720;
+    setEditHistMin(String(Math.floor(totalSec / 60)));
+    setEditHistSec(String(totalSec % 60).padStart(2, "0"));
+    setEditHistMileage(record.mileage !== undefined && record.mileage !== null ? String(record.mileage) : "2.0");
+    setEditHistCertified(record.isCertified);
+    setEditHistNote(record.note || "");
+  };
+
+  // Submit Update History Record
+  const handleUpdateHistorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingHistoryRecord) return;
+
+    setEditHistLoading(true);
+    const distNum = parseFloat(editHistDist) || 0;
+    const durationSec = (parseInt(editHistMin) || 0) * 60 + (parseInt(editHistSec) || 0);
+    const mileageNum = editHistMileage !== "" ? parseFloat(editHistMileage) : (editHistCertified ? distNum : 0);
+
+    try {
+      const res = await fetch("/api/admin/records", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingHistoryRecord.id,
+          distanceKm: distNum,
+          durationSeconds: durationSec,
+          mileage: mileageNum,
+          isCertified: editHistCertified,
+          note: editHistNote,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("기록이 성공적으로 수정되었습니다.");
+        setEditingHistoryRecord(null);
+        fetchAllRecords();
+        fetchAdminData();
+      } else {
+        alert(data.message || "기록 수정 실패");
+      }
+    } catch {
+      alert("기록 수정 요청 중 오류가 발생했습니다.");
+    } finally {
+      setEditHistLoading(false);
+    }
+  };
+
   // Delete record
   const handleDeleteRecord = async (id: string, name: string) => {
     if (!confirm(`정말 ${name} 학생의 기록을 삭제하시겠습니까?`)) return;
@@ -613,6 +674,16 @@ export default function AdminPage() {
   const calculatedMileage = certDoubleMileage
     ? Math.round(distNum * 2 * 10) / 10
     : Math.round(distNum * 10) / 10;
+
+  // Live calculation helpers for history edit modal
+  const histDistNum = parseFloat(editHistDist) || 0;
+  const histTotalSecCalc = (parseInt(editHistMin) || 0) * 60 + (parseInt(editHistSec) || 0);
+  const histCalculatedPace =
+    histDistNum > 0 && histTotalSecCalc > 0
+      ? `${Math.floor(histTotalSecCalc / histDistNum / 60)}'${String(
+          Math.round((histTotalSecCalc / histDistNum) % 60)
+        ).padStart(2, "0")}"`
+      : "-";
 
   // Login view
   if (!isAuthenticated) {
@@ -1291,13 +1362,22 @@ export default function AdminPage() {
                         {r.mileage}P
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <button
-                          onClick={() => handleDeleteRecord(r.id, r.studentName)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors"
-                          title="기록 삭제"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => openEditHistory(r)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="기록 사후 수정/인증"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteRecord(r.id, r.studentName)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="기록 삭제"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1886,6 +1966,200 @@ export default function AdminPage() {
                   className="w-2/3 py-3 rounded-xl bg-slate-900 text-white font-black text-xs hover:bg-slate-800"
                 >
                   현장 등록 및 인증 완료
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* History Record Edit Modal */}
+      {editingHistoryRecord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200 animate-scale-up">
+            <div className="bg-gradient-to-r from-blue-700 to-indigo-700 p-5 text-white flex justify-between items-center">
+              <div>
+                <span className="text-xs font-bold text-blue-200">
+                  누적 기록 사후 수정 & 인증
+                </span>
+                <h3 className="text-lg font-black">
+                  {editingHistoryRecord.studentName} 학생 ({editingHistoryRecord.studentNumber})
+                </h3>
+                <span className="text-xs text-blue-100 font-medium">
+                  {editingHistoryRecord.sessionDate} 일자 기록
+                </span>
+              </div>
+              <button
+                onClick={() => setEditingHistoryRecord(null)}
+                className="p-1 rounded-lg hover:bg-white/20 text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateHistorySubmit} className="p-6 space-y-4">
+              {/* Certification Status Toggle */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  완주 상태 설정 <span className="text-rose-500">*</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !editHistCertified;
+                    setEditHistCertified(next);
+                    if (next && (!editHistMileage || editHistMileage === "0")) {
+                      setEditHistMileage(editHistDist || "2.0");
+                    } else if (!next) {
+                      setEditHistMileage("0");
+                    }
+                  }}
+                  className={`w-full py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-2 transition-all ${
+                    editHistCertified
+                      ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
+                      : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+                  }`}
+                >
+                  {editHistCertified ? (
+                    <>
+                      <Check className="w-4 h-4 text-white" />
+                      ✓ 완주 인증됨 (마일리지 및 랭킹 반영)
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-4 h-4 text-slate-500" />
+                      ✕ 미완주 상태 (미인증)
+                    </>
+                  )}
+                </button>
+                <p className="text-[11px] text-slate-500">
+                  * 버튼을 클릭하여 완주 인증 상태와 미완주 상태를 상호 전환할 수 있습니다.
+                </p>
+              </div>
+
+              {/* Distance */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  달린 거리 (km) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="20"
+                  value={editHistDist}
+                  onChange={(e) => {
+                    setEditHistDist(e.target.value);
+                    if (editHistCertified) {
+                      setEditHistMileage(e.target.value);
+                    }
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  required
+                />
+              </div>
+
+              {/* Duration (Min + Sec) */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  달린 시간 (분:초) <span className="text-rose-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min="0"
+                      max="120"
+                      placeholder="분"
+                      value={editHistMin}
+                      onChange={(e) => setEditHistMin(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold text-center focus:outline-none"
+                    />
+                    <span className="text-xs font-bold text-slate-500">분</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      placeholder="초"
+                      value={editHistSec}
+                      onChange={(e) => setEditHistSec(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm font-bold text-center focus:outline-none"
+                    />
+                    <span className="text-xs font-bold text-slate-500">초</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pace & Mileage Info Box */}
+              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 grid grid-cols-2 gap-3 text-center">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 block">
+                    자동 환산 페이스
+                  </span>
+                  <span className="text-lg font-black text-slate-800">
+                    {histCalculatedPace}
+                    <span className="text-xs font-normal text-slate-500 ml-0.5">/km</span>
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 block">
+                    현재 적용 마일리지
+                  </span>
+                  <span className="text-lg font-black text-emerald-600">
+                    {editHistMileage || (editHistCertified ? editHistDist : "0")}
+                    <span className="text-xs font-bold text-emerald-600 ml-0.5">P</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Mileage Manual Edit */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  부여 마일리지 (P) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  placeholder="예: 2.0"
+                  value={editHistMileage}
+                  onChange={(e) => setEditHistMileage(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  required
+                />
+              </div>
+
+              {/* Note */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  관리자 메모 (선택 사항)
+                </label>
+                <input
+                  type="text"
+                  placeholder="예: 지각으로 본부석 사후 인증, 나이키런 화면 확인 완료 등"
+                  value={editHistNote}
+                  onChange={(e) => setEditHistNote(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
+                />
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingHistoryRecord(null)}
+                  className="w-1/3 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={editHistLoading}
+                  className="w-2/3 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md transition-all active:scale-95"
+                >
+                  {editHistLoading ? "저장 중..." : "수정사항 저장"}
                 </button>
               </div>
             </form>
