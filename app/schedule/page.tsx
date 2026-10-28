@@ -414,7 +414,7 @@ export default function SchedulePage() {
                                 제{session.sessionNumber}차 예정
                               </span>
                               <span className="hidden sm:block text-[9px] text-blue-500 truncate">
-                                07:50 시작
+                                07:40 오픈
                               </span>
                             </div>
                           ) : null}
@@ -473,7 +473,12 @@ export default function SchedulePage() {
                     ) : selectedSession.status === "CLOSED" ? (
                       <span className="px-3.5 py-1.5 rounded-full bg-white/15 text-slate-200 font-bold text-xs inline-flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5" />
-                        진행 완료
+                        제{selectedSession.sessionNumber}차 운영 완료
+                      </span>
+                    ) : selectedSession.status === "READY" ? (
+                      <span className="px-3.5 py-1.5 rounded-full bg-blue-500/20 text-blue-300 font-bold text-xs inline-flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5" />
+                        제{selectedSession.sessionNumber}차 예정 (07:50 시작 / 07:40 접수 오픈)
                       </span>
                     ) : (
                       <span className="px-3.5 py-1.5 rounded-full bg-blue-500/20 text-blue-300 font-bold text-xs inline-flex items-center gap-1.5">
@@ -678,6 +683,16 @@ export default function SchedulePage() {
                         ) : isCancelled ? (
                           <span className="text-[11px] font-bold text-rose-700 bg-rose-100 px-2.5 py-0.5 rounded-full">
                             취소됨 ({session.cancelReason || "기상 악화"})
+                          </span>
+                        ) : session.status === "READY" ? (
+                          <span className="text-[11px] font-bold text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-blue-600" />
+                            제{session.sessionNumber}차 예정 (07:50 시작 / 07:40 접수 오픈)
+                          </span>
+                        ) : session.status === "CLOSED" ? (
+                          <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-slate-500" />
+                            제{session.sessionNumber}차 운영 완료
                           </span>
                         ) : (
                           <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">

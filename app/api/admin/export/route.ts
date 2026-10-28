@@ -3,6 +3,40 @@ import { readDb, calculatePace, formatDuration } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+function formatKSTDateTime(utcIsoString?: string) {
+  if (!utcIsoString || utcIsoString === "-") return "-";
+  try {
+    const date = new Date(utcIsoString);
+    if (isNaN(date.getTime())) return utcIsoString;
+    const parts = new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+    const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
+    if (p.year && p.month && p.day && p.hour && p.minute && p.second) {
+      return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}:${p.second}`;
+    }
+    return new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).format(date).replace(/\. /g, "-").replace(/\./g, "");
+  } catch {
+    return utcIsoString;
+  }
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -76,7 +110,7 @@ export async function GET(req: Request) {
       }
     } else {
       // Detailed Run History
-      csvContent += "날짜,학번,이름,인증상태,거리(km),시간,페이스,적립마일리지(P),인증시각,비고\n";
+      csvContent += "날짜,학번,이름,신청시각,인증상태,거리(km),시간,페이스,적립마일리지(P),인증시각,비고\n";
       const sortedRecords = [...db.records].sort((a, b) =>
         b.sessionDate.localeCompare(a.sessionDate)
       );
@@ -84,11 +118,12 @@ export async function GET(req: Request) {
       for (const r of sortedRecords) {
         const durStr = formatDuration(r.durationSeconds);
         const statusStr = r.isCertified ? "완주인증" : "신청대기";
-        csvContent += `"${r.sessionDate}","${r.studentNumber}","${r.studentName}","${statusStr}",${r.distanceKm},"${durStr}","${r.pace}",${r.mileage},"${r.certifiedAt || "-"}","${r.note || ""}"\n`;
+        csvContent += `"${r.sessionDate}","${r.studentNumber}","${r.studentName}","${formatKSTDateTime(r.appliedAt)}","${statusStr}",${r.distanceKm},"${durStr}","${r.pace}",${r.mileage},"${formatKSTDateTime(r.certifiedAt)}","${r.note || ""}"\n`;
       }
     }
 
-    const filename = `신도림중_아침달리기_${type === "summary" ? "학생별누적현황" : "상세이력"}_${new Date().toISOString().slice(0, 10)}.csv`;
+    const kstDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+    const filename = `신도림중_아침달리기_${type === "summary" ? "학생별누적현황" : "상세이력"}_${kstDate}.csv`;
 
     return new NextResponse(csvContent, {
       headers: {

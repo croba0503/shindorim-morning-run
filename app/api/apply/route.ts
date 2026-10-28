@@ -22,6 +22,47 @@ export async function POST(req: Request) {
     const db = await readDb();
     const session = await getOrCreateTodaySession(db);
 
+    // Check OFF / CANCELLED status
+    if (session.status === "OFF") {
+      return NextResponse.json(
+        { success: false, message: `오늘 아침달리기는 운영하지 않습니다. (${session.cancelReason || "휴무"})` },
+        { status: 400 }
+      );
+    }
+    if (session.status === "CANCELLED") {
+      return NextResponse.json(
+        { success: false, message: `오늘 아침달리기는 취소되었습니다. (${session.cancelReason || "기상 악화"})` },
+        { status: 400 }
+      );
+    }
+
+    // KST time validation (07:40 ~ 08:30)
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(now);
+    const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
+    const hour = (p.hour === "24" ? "00" : p.hour).padStart(2, "0");
+    const minute = p.minute.padStart(2, "0");
+    const kstTimeStr = `${hour}:${minute}`;
+
+    if (kstTimeStr < "07:40") {
+      return NextResponse.json(
+        { success: false, message: "참가신청은 아침 07:40부터 가능합니다." },
+        { status: 400 }
+      );
+    }
+
+    if (kstTimeStr >= "08:30") {
+      return NextResponse.json(
+        { success: false, message: "오늘 아침달리기 신청 시간(08:30)이 종료되었습니다." },
+        { status: 400 }
+      );
+    }
+
     // Check if session is open
     if (!session.isOpen || session.status !== "OPEN") {
       return NextResponse.json(

@@ -56,6 +56,21 @@ interface ApplicantRecord {
   note?: string;
 }
 
+function formatToKSTTime(utcIsoString?: string) {
+  if (!utcIsoString) return "-";
+  try {
+    const date = new Date(utcIsoString);
+    return new Intl.DateTimeFormat("ko-KR", {
+      timeZone: "Asia/Seoul",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  } catch {
+    return utcIsoString.slice(11, 16) || "-";
+  }
+}
+
 export default function AdminPage() {
   // Authentication
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -1042,7 +1057,7 @@ export default function AdminPage() {
                           {item.studentName}
                         </td>
                         <td className="py-3.5 px-4 text-slate-500 text-xs">
-                          {item.appliedAt.slice(11, 16)}
+                          {formatToKSTTime(item.appliedAt)}
                         </td>
                         <td className="py-3.5 px-4">
                           {item.isCertified ? (

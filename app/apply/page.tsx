@@ -163,6 +163,46 @@ export default function ApplyPage() {
         </p>
       </div>
 
+      {/* 07:40 Pre-open announcement banner */}
+      {data?.session.status === "READY" && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 text-xs sm:text-sm text-amber-900 font-bold animate-fade-in shadow-sm">
+          <Clock className="w-5 h-5 text-amber-600 flex-shrink-0 animate-pulse" />
+          <div>
+            <p className="font-extrabold text-amber-950">오늘 아침달리기는 07:40부터 참가신청이 시작됩니다.</p>
+            <p className="text-xs text-amber-700 font-normal mt-0.5">운동장 본부석에서 준비 후 07:40 정각에 참가신청이 자동 오픈됩니다.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Closed announcement banner */}
+      {data?.session.status === "CLOSED" && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center space-y-2 animate-fade-in shadow-sm">
+          <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-600 mx-auto flex items-center justify-center">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+          <h3 className="text-base font-extrabold text-slate-900">
+            오늘 아침달리기 접수가 마감되었습니다.
+          </h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            08:30 접수 마감 시간 경과 또는 선착순 정원 마감으로 오늘 운영이 완료되었습니다. 다음 차시에 도전해 주세요!
+          </p>
+          <div className="pt-2 flex justify-center gap-2">
+            <Link
+              href="/schedule"
+              className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors"
+            >
+              전체 일정 보기
+            </Link>
+            <Link
+              href="/my-record"
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-100 transition-colors"
+            >
+              나의 기록 확인
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Session Status & Capacity Card */}
       <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2 border-b border-slate-100 pb-3">
@@ -196,6 +236,10 @@ export default function ApplyPage() {
                   ? `취소됨 (${data.session.cancelReason || "기상 악화"})`
                   : data?.session.status === "OFF"
                   ? `🚫 미운영 (${data.session.cancelReason || "휴무"})`
+                  : data?.session.status === "READY"
+                  ? "🕒 07:40 오픈 예정"
+                  : data?.session.status === "CLOSED"
+                  ? "오늘 접수 마감"
                   : "신청 준비 중"}
               </span>
             )}
@@ -330,31 +374,47 @@ export default function ApplyPage() {
             </p>
           </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={!isOpen || isFull || submitting}
-            className={`w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] ${
-              !isOpen || isFull
-                ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
-                : "bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 hover:from-blue-700 hover:to-emerald-600 text-white shadow-blue-500/30"
-            }`}
-          >
-            {submitting ? (
-              <span>접수 처리 중...</span>
-            ) : isFull ? (
-              <span>선착순 30명 마감되었습니다</span>
-            ) : data?.session.status === "OFF" ? (
-              <span>🚫 오늘 아침달리기는 운영하지 않습니다 ({data?.session.cancelReason || "휴무"})</span>
-            ) : !isOpen ? (
-              <span>현재 참가 신청 접수 시간이 아닙니다</span>
-            ) : (
-              <>
-                <UserCheck className="w-4 h-4" />
-                선착순 참가신청 완료하기
-              </>
-            )}
-          </button>
+          {/* Submit Button Area */}
+          {data?.session.status === "READY" ? (
+            <div className="w-full py-4 px-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 font-black text-sm flex flex-col sm:flex-row items-center justify-center gap-2 text-center shadow-sm">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
+                🕒 07:40 오픈 예정 (운영 준비 중)
+              </span>
+              <span className="text-xs font-normal text-amber-700">
+                - 아침 07:40 정각에 버튼이 자동 활성화됩니다
+              </span>
+            </div>
+          ) : (
+            <button
+              type="submit"
+              disabled={!isOpen || isFull || submitting}
+              className={`w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.98] ${
+                !isOpen || isFull
+                  ? "bg-slate-300 text-slate-500 cursor-not-allowed shadow-none"
+                  : "bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 hover:from-blue-700 hover:to-emerald-600 text-white shadow-blue-500/30"
+              }`}
+            >
+              {submitting ? (
+                <span>접수 처리 중...</span>
+              ) : isFull ? (
+                <span>선착순 30명 마감되었습니다</span>
+              ) : data?.session.status === "OFF" ? (
+                <span>🚫 오늘 아침달리기는 운영하지 않습니다 ({data?.session.cancelReason || "휴무"})</span>
+              ) : data?.session.status === "CANCELLED" ? (
+                <span>🌧️ 오늘 아침달리기는 취소되었습니다 ({data?.session.cancelReason || "기상 악화"})</span>
+              ) : data?.session.status === "CLOSED" ? (
+                <span>오늘 아침달리기 접수가 마감되었습니다</span>
+              ) : !isOpen ? (
+                <span>현재 참가 신청 접수 시간이 아닙니다</span>
+              ) : (
+                <>
+                  <UserCheck className="w-4 h-4" />
+                  선착순 참가신청 완료하기
+                </>
+              )}
+            </button>
+          )}
         </form>
       </div>
 

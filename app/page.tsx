@@ -83,13 +83,25 @@ export default function HomePage() {
             마일리지 적립과 명예의 전당 랭킹에 도전하세요!
           </p>
 
+          {/* 07:40 Pre-open announcement banner */}
+          {data?.session.status === "READY" && (
+            <div className="max-w-md mx-auto p-3 rounded-2xl bg-amber-400/20 border border-amber-300/30 text-amber-200 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 backdrop-blur-md animate-fade-in">
+              <Clock className="w-4 h-4 text-amber-300 animate-pulse flex-shrink-0" />
+              <span>오늘 아침달리기는 07:40부터 참가신청이 시작됩니다.</span>
+            </div>
+          )}
+
           {/* Today's Live Status Banner */}
           <div className="pt-2">
             <div className="inline-block w-full max-w-md bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 sm:p-5 shadow-2xl">
               <div className="flex items-center justify-between text-xs sm:text-sm font-bold border-b border-white/10 pb-3 mb-3">
                 <span className="flex items-center gap-1.5 text-blue-200">
                   <Clock className="w-4 h-4 text-blue-400" />
-                  오늘의 차시: {data ? `${data.session.date} (${data.session.dayOfWeek})` : "확인 중..."}
+                  {data?.session.status === "READY"
+                    ? `제${data.session.sessionNumber}차 예정 (07:50 시작 / 07:40 접수 오픈)`
+                    : data?.session.status === "CLOSED"
+                    ? `제${data.session.sessionNumber}차 운영 완료`
+                    : `오늘의 차시: ${data ? `${data.session.date} (${data.session.dayOfWeek})` : "확인 중..."}`}
                 </span>
                 {loading ? (
                   <span className="text-slate-400">조회 중...</span>
@@ -101,6 +113,22 @@ export default function HomePage() {
                 ) : isFull ? (
                   <span className="text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full font-bold">
                     오늘 30명 마감
+                  </span>
+                ) : data?.session.status === "READY" ? (
+                  <span className="text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full font-bold">
+                    07:40 오픈 예정
+                  </span>
+                ) : data?.session.status === "CLOSED" ? (
+                  <span className="text-slate-300 bg-white/10 px-2.5 py-0.5 rounded-full font-bold">
+                    제{data?.session.sessionNumber}차 완료
+                  </span>
+                ) : data?.session.status === "OFF" ? (
+                  <span className="text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full font-bold">
+                    미운영
+                  </span>
+                ) : data?.session.status === "CANCELLED" ? (
+                  <span className="text-rose-300 bg-rose-500/20 px-2.5 py-0.5 rounded-full font-bold">
+                    취소됨
                   </span>
                 ) : (
                   <span className="text-slate-400 bg-white/10 px-2.5 py-0.5 rounded-full font-bold">
@@ -135,13 +163,31 @@ export default function HomePage() {
 
               {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-2.5 mt-4">
-                <Link
-                  href="/apply"
-                  className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-sm flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/30 transition-all active:scale-95"
-                >
-                  <Flame className="w-4 h-4 fill-slate-950" />
-                  지금 참가신청
-                </Link>
+                {data?.session.status === "READY" ? (
+                  <Link
+                    href="/apply"
+                    className="w-full py-2.5 px-4 rounded-xl bg-amber-500/30 hover:bg-amber-500/40 text-amber-200 border border-amber-400/40 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <Clock className="w-4 h-4 text-amber-300" />
+                    07:40 오픈 예정
+                  </Link>
+                ) : data?.session.status === "CLOSED" ? (
+                  <Link
+                    href="/schedule"
+                    className="w-full py-2.5 px-4 rounded-xl bg-white/15 hover:bg-white/25 text-slate-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-white/15 transition-all"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    오늘 운영 완료
+                  </Link>
+                ) : (
+                  <Link
+                    href="/apply"
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-sm flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/30 transition-all active:scale-95"
+                  >
+                    <Flame className="w-4 h-4 fill-slate-950" />
+                    지금 참가신청
+                  </Link>
+                )}
                 <Link
                   href="/my-record"
                   className="w-full py-2.5 px-4 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-sm flex items-center justify-center gap-1.5 border border-white/15 transition-all"
