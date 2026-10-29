@@ -39,7 +39,10 @@ export interface RunRecord {
   mileage: number;
   certifiedAt?: string;
   note?: string;
+  excludeFromTimeRank?: boolean;
 }
+
+export type ApplicantRecord = RunRecord;
 
 export interface Notice {
   id: string;

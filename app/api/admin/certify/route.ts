@@ -14,6 +14,7 @@ export async function POST(req: Request) {
       isDoubleMileage = false,
       customMileage,
       note,
+      excludeFromTimeRank = false,
     } = body;
 
     if (!recordId) {
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
 
     const totalSeconds =
       (parseInt(durationMinutes) || 0) * 60 + (parseInt(durationSeconds) || 0);
-    if (totalSeconds <= 0) {
+    if (!excludeFromTimeRank && totalSeconds <= 0) {
       return NextResponse.json(
         { success: false, message: "달린 시간을 입력해주세요." },
         { status: 400 }
@@ -68,6 +69,7 @@ export async function POST(req: Request) {
     record.pace = pace;
     record.mileage = finalMileage;
     record.certifiedAt = new Date().toISOString();
+    record.excludeFromTimeRank = Boolean(excludeFromTimeRank);
     if (note !== undefined) {
       record.note = note;
     }

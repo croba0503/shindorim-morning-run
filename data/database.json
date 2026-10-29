@@ -270,7 +270,8 @@
       "durationSeconds": 750,
       "pace": "5'00\"",
       "mileage": 2.5,
-      "certifiedAt": "2026-09-21T08:18:00Z"
+      "certifiedAt": "2026-09-21T08:18:00Z",
+      "excludeFromTimeRank": false
     },
     {
       "id": "rec-0b",
@@ -281,10 +282,10 @@
       "studentName": "홍길동",
       "appliedAt": "2026-09-23T07:49:00Z",
       "isCertified": true,
-      "distanceKm": 3.0,
+      "distanceKm": 3,
       "durationSeconds": 900,
       "pace": "5'00\"",
-      "mileage": 6.0,
+      "mileage": 6,
       "certifiedAt": "2026-09-23T08:18:00Z"
     },
     {

@@ -44,7 +44,7 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { id, distanceKm, durationSeconds, mileage, note, isCertified } = body;
+    const { id, distanceKm, durationSeconds, mileage, note, isCertified, excludeFromTimeRank } = body;
 
     const db = await readDb();
     const record = db.records.find((r) => r.id === id);
@@ -60,6 +60,7 @@ export async function PATCH(req: Request) {
     if (mileage !== undefined) record.mileage = parseFloat(mileage);
     if (note !== undefined) record.note = note;
     if (isCertified !== undefined) record.isCertified = Boolean(isCertified);
+    if (excludeFromTimeRank !== undefined) record.excludeFromTimeRank = Boolean(excludeFromTimeRank);
 
     if (record.distanceKm > 0 && record.durationSeconds > 0) {
       record.pace = calculatePace(record.distanceKm, record.durationSeconds);

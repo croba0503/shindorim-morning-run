@@ -54,6 +54,7 @@ interface ApplicantRecord {
   mileage: number;
   certifiedAt?: string;
   note?: string;
+  excludeFromTimeRank?: boolean;
 }
 
 function formatToKSTTime(utcIsoString?: string) {
@@ -104,6 +105,7 @@ export default function AdminPage() {
   const [certDoubleMileage, setCertDoubleMileage] = useState(false);
   const [certCustomMileage, setCertCustomMileage] = useState("");
   const [certNote, setCertNote] = useState("");
+  const [certExcludeFromTimeRank, setCertExcludeFromTimeRank] = useState(false);
   const [certLoading, setCertLoading] = useState(false);
 
   // Manual Add Modal
@@ -126,6 +128,7 @@ export default function AdminPage() {
   const [editHistSec, setEditHistSec] = useState("00");
   const [editHistMileage, setEditHistMileage] = useState("");
   const [editHistCertified, setEditHistCertified] = useState(false);
+  const [editHistExcludeFromTimeRank, setEditHistExcludeFromTimeRank] = useState(false);
   const [editHistNote, setEditHistNote] = useState("");
   const [editHistLoading, setEditHistLoading] = useState(false);
 
@@ -372,6 +375,7 @@ export default function AdminPage() {
     setCertDoubleMileage(session?.isDoubleMileage || false);
     setCertCustomMileage("");
     setCertNote(record.note || "");
+    setCertExcludeFromTimeRank(record.excludeFromTimeRank || false);
   };
 
   // Complete Certification
@@ -392,6 +396,7 @@ export default function AdminPage() {
           isDoubleMileage: certDoubleMileage,
           customMileage: certCustomMileage || undefined,
           note: certNote,
+          excludeFromTimeRank: certExcludeFromTimeRank,
         }),
       });
       const data = await res.json();
@@ -454,6 +459,7 @@ export default function AdminPage() {
     setEditHistSec(String(totalSec % 60).padStart(2, "0"));
     setEditHistMileage(record.mileage !== undefined && record.mileage !== null ? String(record.mileage) : "2.0");
     setEditHistCertified(record.isCertified);
+    setEditHistExcludeFromTimeRank(record.excludeFromTimeRank || false);
     setEditHistNote(record.note || "");
   };
 
@@ -478,6 +484,7 @@ export default function AdminPage() {
           mileage: mileageNum,
           isCertified: editHistCertified,
           note: editHistNote,
+          excludeFromTimeRank: editHistExcludeFromTimeRank,
         }),
       });
       const data = await res.json();
@@ -1061,10 +1068,17 @@ export default function AdminPage() {
                         </td>
                         <td className="py-3.5 px-4">
                           {item.isCertified ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                              <CheckCircle2 className="w-3 h-3" />
-                              완주 인증
-                            </span>
+                            <div className="flex flex-col items-start gap-1">
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                                <CheckCircle2 className="w-3 h-3" />
+                                완주 인증
+                              </span>
+                              {item.excludeFromTimeRank && (
+                                <span className="inline-block text-[10px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">
+                                  [시간제외]
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
                               <Clock className="w-3 h-3" />
@@ -1074,9 +1088,15 @@ export default function AdminPage() {
                         </td>
                         <td className="py-3.5 px-4 font-semibold text-slate-700">
                           {item.isCertified ? (
-                            <span>
-                              {item.distanceKm}km • {Math.floor(item.durationSeconds / 60)}분 • {item.pace}/km
-                            </span>
+                            item.excludeFromTimeRank ? (
+                              <span>
+                                {item.distanceKm}km • <span className="text-amber-700 font-bold">시간 미확인</span>
+                              </span>
+                            ) : (
+                              <span>
+                                {item.distanceKm}km • {Math.floor(item.durationSeconds / 60)}분 • {item.pace}/km
+                              </span>
+                            )
                           ) : (
                             <span className="text-slate-400">-</span>
                           )}
@@ -1356,23 +1376,40 @@ export default function AdminPage() {
                         {r.studentName}
                       </td>
                       <td className="py-3 px-4">
-                        {r.isCertified ? (
-                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                            완주
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                            미완주
-                          </span>
-                        )}
+                        <div className="flex flex-col items-start gap-1">
+                          {r.isCertified ? (
+                            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                              완주
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                              미완주
+                            </span>
+                          )}
+                          {r.excludeFromTimeRank && (
+                            <span className="inline-block text-[10px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">
+                              [시간제외]
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 font-bold text-slate-900">
                         {r.distanceKm}km
                       </td>
                       <td className="py-3 px-4 text-slate-600">
-                        {Math.floor(r.durationSeconds / 60)}분 {r.durationSeconds % 60}초
+                        {r.excludeFromTimeRank ? (
+                          <span className="text-xs text-amber-700 font-medium">시간 미확인</span>
+                        ) : (
+                          `${Math.floor(r.durationSeconds / 60)}분 ${r.durationSeconds % 60}초`
+                        )}
                       </td>
-                      <td className="py-3 px-4 text-slate-600">{r.pace}/km</td>
+                      <td className="py-3 px-4 text-slate-600">
+                        {r.excludeFromTimeRank ? (
+                          <span className="text-xs text-amber-700 font-medium">-</span>
+                        ) : (
+                          `${r.pace}/km`
+                        )}
+                      </td>
                       <td className="py-3 px-4 font-extrabold text-emerald-600">
                         {r.mileage}P
                       </td>
@@ -1832,6 +1869,27 @@ export default function AdminPage() {
                 </label>
               </div>
 
+              {/* Time Ranking Exclusion Checkbox */}
+              <div className="p-3 bg-amber-50/80 rounded-2xl border border-amber-200/80 space-y-1">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="certExcludeFromTimeRank"
+                    checked={certExcludeFromTimeRank}
+                    onChange={(e) => setCertExcludeFromTimeRank(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-amber-950 block">
+                      시간 기록 미확인 (시간 랭킹 제외)
+                    </span>
+                    <p className="text-[11px] text-amber-800 leading-tight mt-0.5">
+                      체크 시 완주/거리/마일리지는 인정되나, 페이스 및 시간 순위 산정에서만 제외됩니다.
+                    </p>
+                  </div>
+                </label>
+              </div>
+
               {/* Custom Mileage Override (Optional) */}
               <div className="space-y-1 pt-1">
                 <label className="block text-[11px] font-bold text-slate-500">
@@ -2144,6 +2202,27 @@ export default function AdminPage() {
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   required
                 />
+              </div>
+
+              {/* Time Ranking Exclusion Checkbox */}
+              <div className="p-3 bg-amber-50/80 rounded-2xl border border-amber-200/80 space-y-1">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="editHistExcludeFromTimeRank"
+                    checked={editHistExcludeFromTimeRank}
+                    onChange={(e) => setEditHistExcludeFromTimeRank(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 text-amber-600 rounded border-amber-300 focus:ring-amber-500"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-amber-950 block">
+                      시간 기록 미확인 (시간 랭킹 제외)
+                    </span>
+                    <p className="text-[11px] text-amber-800 leading-tight mt-0.5">
+                      체크 시 완주/거리/마일리지는 인정되나, 페이스 및 시간 순위 산정에서만 제외됩니다.
+                    </p>
+                  </div>
+                </label>
               </div>
 
               {/* Note */}
