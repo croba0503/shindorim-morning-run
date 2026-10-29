@@ -31,7 +31,15 @@ export async function GET() {
 
     // Dynamic lifecycle based on KST when not OFF or CANCELLED
     if (status !== "OFF" && status !== "CANCELLED") {
-      if (kstTimeStr < "07:40") {
+      if (session.isForceOpen) {
+        status = "OPEN";
+        isOpen = true;
+        message = "선착순 정원 해제 - 추가 참가신청 접수 중입니다.";
+      } else if (session.isOpen === false) {
+        status = "CLOSED";
+        isOpen = false;
+        message = "오늘 아침달리기 운영 및 접수가 마감되었습니다.";
+      } else if (kstTimeStr < "07:40") {
         status = "READY";
         isOpen = false;
         message = "아침 07:40부터 참가신청이 시작됩니다.";
@@ -57,6 +65,10 @@ export async function GET() {
     const activeNotices = db.notices.filter((n) => n.isActive);
     const urgentNotice = activeNotices.find((n) => n.type === "URGENT") || null;
 
+    const remainingSlots = session.isForceOpen
+      ? Math.max(5, session.maxCapacity - applicantsCount)
+      : Math.max(0, session.maxCapacity - applicantsCount);
+
     return NextResponse.json({
       success: true,
       session: {
@@ -70,12 +82,13 @@ export async function GET() {
         status,
         cancelReason: session.cancelReason,
         notice: session.notice,
+        isForceOpen: Boolean(session.isForceOpen),
       },
       stats: {
         applicantsCount,
         certifiedCount,
         maxCapacity: session.maxCapacity,
-        remainingSlots: Math.max(0, session.maxCapacity - applicantsCount),
+        remainingSlots,
       },
       message,
       kstTimeStr,

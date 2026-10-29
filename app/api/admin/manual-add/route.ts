@@ -1,21 +1,12 @@
 import { NextResponse } from "next/server";
-import { readDb, writeDb, getOrCreateTodaySession, calculatePace } from "@/lib/db";
+import { readDb, writeDb, getOrCreateTodaySession } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const {
-      studentNumber,
-      name,
-      distanceKm,
-      durationMinutes,
-      durationSeconds = 0,
-      isDoubleMileage = false,
-      customMileage,
-      note,
-    } = body;
+    const { studentNumber, name, note } = body;
 
     const trimmedNum = (studentNumber || "").trim();
     const trimmedName = (name || "").trim();
@@ -27,27 +18,21 @@ export async function POST(req: Request) {
       );
     }
 
-    const dist = parseFloat(distanceKm);
-    if (isNaN(dist) || dist <= 0) {
-      return NextResponse.json(
-        { success: false, message: "달린 거리(km)를 올바르게 입력해주세요." },
-        { status: 400 }
-      );
-    }
-
-    const totalSeconds =
-      (parseInt(durationMinutes) || 0) * 60 + (parseInt(durationSeconds) || 0);
-    if (totalSeconds <= 0) {
-      return NextResponse.json(
-        { success: false, message: "달린 시간을 올바르게 입력해주세요." },
-        { status: 400 }
-      );
-    }
-
     const db = await readDb();
     const session = await getOrCreateTodaySession(db);
 
-    // Find or create student
+    // 중복 신청 체크
+    const alreadyApplied = db.records.find(
+      (r) => r.sessionId === session.id && r.studentNumber === trimmedNum
+    );
+    if (alreadyApplied) {
+      return NextResponse.json(
+        { success: false, message: `해당 학생(${trimmedName})은 이미 오늘 신청 내역이 존재합니다.` },
+        { status: 400 }
+      );
+    }
+
+    // 학생 정보 조회 또는 신규 생성
     let student = db.students.find((s) => s.studentNumber === trimmedNum);
     if (!student) {
       student = {
@@ -62,16 +47,7 @@ export async function POST(req: Request) {
       student.name = trimmedName;
     }
 
-    // Pace and mileage
-    const pace = calculatePace(dist, totalSeconds);
-    let finalMileage: number;
-    if (customMileage !== undefined && customMileage !== null && customMileage !== "") {
-      finalMileage = Math.round(parseFloat(customMileage) * 10) / 10;
-    } else {
-      const baseMileage = Math.round(dist * 10) / 10;
-      finalMileage = isDoubleMileage ? Math.round(baseMileage * 2 * 10) / 10 : baseMileage;
-    }
-
+    // 요구사항: '신청 접수(미완주)' 상태로 등록하여 완주 대기 상태 유지
     const newRecord = {
       id: `rec-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       sessionId: session.id,
@@ -80,13 +56,12 @@ export async function POST(req: Request) {
       studentNumber: student.studentNumber,
       studentName: student.name,
       appliedAt: new Date().toISOString(),
-      isCertified: true,
-      distanceKm: Math.round(dist * 10) / 10,
-      durationSeconds: totalSeconds,
-      pace,
-      mileage: finalMileage,
-      certifiedAt: new Date().toISOString(),
-      note: note || "교사 현장 수동 등록",
+      isCertified: false,
+      distanceKm: 0,
+      durationSeconds: 0,
+      pace: "-",
+      mileage: 0,
+      note: note ? note.trim() : "현장 수동 접수",
     };
 
     db.records.push(newRecord);
@@ -94,13 +69,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `${student.name} 학생의 기록이 현장 등록 및 인증되었습니다.`,
+      message: `${student.name} 학생의 신청이 접수되었습니다. 완주 후 본부석에서 기록을 인증해 주세요.`,
       record: newRecord,
     });
   } catch (error) {
     console.error("Error in POST /api/admin/manual-add:", error);
     return NextResponse.json(
-      { success: false, message: "수동 등록 처리 중 오류가 발생했습니다." },
+      { success: false, message: "현장 수동 등록 처리 중 오류가 발생했습니다." },
       { status: 500 }
     );
   }

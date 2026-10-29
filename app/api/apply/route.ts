@@ -22,6 +22,19 @@ export async function POST(req: Request) {
     const db = await readDb();
     const session = await getOrCreateTodaySession(db);
 
+    // Calculate KST current time (HH:mm)
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(now);
+    const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
+    const hour = (p.hour === "24" ? "00" : p.hour).padStart(2, "0");
+    const minute = p.minute.padStart(2, "0");
+    const kstTimeStr = `${hour}:${minute}`;
+
     // Check OFF / CANCELLED status
     if (session.status === "OFF") {
       return NextResponse.json(
@@ -36,35 +49,25 @@ export async function POST(req: Request) {
       );
     }
 
-    // KST time validation (07:40 ~ 08:30)
-    const now = new Date();
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Seoul",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).formatToParts(now);
-    const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
-    const hour = (p.hour === "24" ? "00" : p.hour).padStart(2, "0");
-    const minute = p.minute.padStart(2, "0");
-    const kstTimeStr = `${hour}:${minute}`;
+    // KST time validation (07:40 ~ 08:30) - if isForceOpen is true, bypass time restrictions
+    if (!session.isForceOpen) {
+      if (kstTimeStr < "07:40") {
+        return NextResponse.json(
+          { success: false, message: "참가신청은 아침 07:40부터 가능합니다." },
+          { status: 400 }
+        );
+      }
 
-    if (kstTimeStr < "07:40") {
-      return NextResponse.json(
-        { success: false, message: "참가신청은 아침 07:40부터 가능합니다." },
-        { status: 400 }
-      );
-    }
-
-    if (kstTimeStr >= "08:30") {
-      return NextResponse.json(
-        { success: false, message: "오늘 아침달리기 신청 시간(08:30)이 종료되었습니다." },
-        { status: 400 }
-      );
+      if (kstTimeStr >= "08:30") {
+        return NextResponse.json(
+          { success: false, message: "오늘 아침달리기 신청 시간(08:30)이 종료되었습니다." },
+          { status: 400 }
+        );
+      }
     }
 
     // Check if session is open
-    if (!session.isOpen || session.status !== "OPEN") {
+    if (!session.isOpen || (session.status !== "OPEN" && !session.isForceOpen)) {
       return NextResponse.json(
         { success: false, message: "현재 아침달리기 참가 신청이 접수 중이 아닙니다." },
         { status: 400 }
@@ -79,9 +82,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Check capacity (선착순 30명)
+    // Check capacity (선착순 30명,단 isForceOpen일 경우 초과 허용)
     const todayRecords = db.records.filter((r) => r.sessionId === session.id);
-    if (todayRecords.length >= session.maxCapacity) {
+    if (!session.isForceOpen && todayRecords.length >= session.maxCapacity) {
       return NextResponse.json(
         { success: false, message: `오늘 선착순 ${session.maxCapacity}명 신청이 이미 마감되었습니다.` },
         { status: 400 }

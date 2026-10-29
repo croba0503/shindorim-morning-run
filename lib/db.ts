@@ -14,6 +14,7 @@ export interface Session {
   status: "READY" | "OPEN" | "CLOSED" | "CANCELLED" | "OFF";
   cancelReason?: string;
   notice?: string;
+  isForceOpen?: boolean; // 교사 강제 접수 재개 / 30명 제한 해제 플래그
 }
 
 export interface Student {

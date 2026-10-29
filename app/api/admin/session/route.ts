@@ -53,9 +53,28 @@ export async function PATCH(req: Request) {
       session.code = trimmedCode;
     }
 
+    if (body.isForceOpen !== undefined) {
+      session.isForceOpen = Boolean(body.isForceOpen);
+      if (session.isForceOpen) {
+        session.isOpen = true;
+        session.status = "OPEN";
+        const currentCount = db.records.filter((r) => r.sessionId === session.id).length;
+        if (session.maxCapacity <= currentCount) {
+          session.maxCapacity = currentCount + 10;
+        }
+      }
+    }
+
     if (body.isOpen !== undefined) {
       session.isOpen = Boolean(body.isOpen);
       session.status = session.isOpen ? "OPEN" : "CLOSED";
+      if (!session.isOpen) {
+        session.isForceOpen = false;
+      }
+    }
+
+    if (body.maxCapacity !== undefined) {
+      session.maxCapacity = Math.max(1, parseInt(body.maxCapacity) || 30);
     }
 
     if (body.isDoubleMileage !== undefined) {
@@ -64,8 +83,13 @@ export async function PATCH(req: Request) {
 
     if (body.status !== undefined) {
       session.status = body.status;
-      if (body.status === "OPEN") session.isOpen = true;
-      if (body.status === "CLOSED" || body.status === "CANCELLED") session.isOpen = false;
+      if (body.status === "OPEN") {
+        session.isOpen = true;
+      }
+      if (body.status === "CLOSED" || body.status === "CANCELLED" || body.status === "OFF") {
+        session.isOpen = false;
+        session.isForceOpen = false;
+      }
     }
 
     if (body.cancelReason !== undefined) {

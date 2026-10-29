@@ -21,6 +21,7 @@ import {
   KeyRound,
   Sparkles,
   Ban,
+  AlertCircle,
 } from "lucide-react";
 
 interface TodaySession {
@@ -35,6 +36,7 @@ interface TodaySession {
   status: "READY" | "OPEN" | "CLOSED" | "CANCELLED" | "OFF";
   cancelReason?: string;
   notice?: string;
+  isForceOpen?: boolean;
   appliedCount?: number;
   certifiedCount?: number;
 }
@@ -72,6 +74,18 @@ function formatToKSTTime(utcIsoString?: string) {
   }
 }
 
+function formatStudentNumber(studentNumber?: string) {
+  if (!studentNumber) return "-";
+  const num = studentNumber.trim();
+  if (num.length === 5) {
+    const grade = num.charAt(0);
+    const cls = parseInt(num.slice(1, 3), 10);
+    const no = parseInt(num.slice(3, 5), 10);
+    return `${grade}학년 ${cls}반 ${no}번`;
+  }
+  return num;
+}
+
 export default function AdminPage() {
   // Authentication
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -91,7 +105,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
 
   // Tab
-  const [activeTab, setActiveTab] = useState<"desk" | "schedule" | "all">("desk");
+  const [activeTab, setActiveTab] = useState<"desk" | "schedule" | "all" | "uncompleted">("desk");
 
   // Editing Code Modal / Inline
   const [editingCode, setEditingCode] = useState(false);
@@ -108,18 +122,19 @@ export default function AdminPage() {
   const [certExcludeFromTimeRank, setCertExcludeFromTimeRank] = useState(false);
   const [certLoading, setCertLoading] = useState(false);
 
-  // Manual Add Modal
+  // Manual Add Modal (미완주/접수 상태로 등록)
   const [showManualAdd, setShowManualAdd] = useState(false);
   const [manualNum, setManualNum] = useState("");
   const [manualName, setManualName] = useState("");
-  const [manualDist, setManualDist] = useState("2.0");
-  const [manualMin, setManualMin] = useState("12");
-  const [manualSec, setManualSec] = useState("00");
-  const [manualDouble, setManualDouble] = useState(false);
+  const [manualNote, setManualNote] = useState("");
+  const [manualLoading, setManualLoading] = useState(false);
 
   // All Records View
   const [allRecords, setAllRecords] = useState<ApplicantRecord[]>([]);
   const [allRecordsSearch, setAllRecordsSearch] = useState("");
+
+  // Uncompleted Records View
+  const [uncompletedSearch, setUncompletedSearch] = useState("");
 
   // History Record Edit (Post-Certification)
   const [editingHistoryRecord, setEditingHistoryRecord] = useState<ApplicantRecord | null>(null);
@@ -202,6 +217,8 @@ export default function AdminPage() {
         setNewCodeInput(data.session.code);
         setCertDoubleMileage(data.session.isDoubleMileage);
       }
+      // Also refresh allRecords for uncompletedCount badge
+      fetchAllRecords();
     } catch (err) {
       console.error("Admin fetch error:", err);
     } finally {
@@ -235,7 +252,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      if (activeTab === "all") {
+      if (activeTab === "all" || activeTab === "uncompleted") {
         fetchAllRecords();
       } else if (activeTab === "schedule") {
         fetchSchedules();
@@ -243,22 +260,81 @@ export default function AdminPage() {
     }
   }, [isAuthenticated, activeTab, allRecordsSearch]);
 
-  // Session Control Actions
-  const toggleApplicationOpen = async () => {
+  const uncompletedCount = allRecords.filter((r) => !r.isCertified).length;
+
+  // Session Control Actions: Open or Force-Open (Bypass 30 Capacity & Time Limit)
+  const handleOpenApplication = async (force: boolean = false) => {
     if (!session) return;
-    const newOpenState = !session.isOpen;
     try {
       const res = await fetch("/api/admin/session", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isOpen: newOpenState }),
+        body: JSON.stringify({
+          isOpen: true,
+          status: "OPEN",
+          isForceOpen: force,
+        }),
       });
       const data = await res.json();
       if (data.success) {
         setSession(data.session);
+        alert(
+          force
+            ? "선착순 30명 제한 및 시간 제한을 해제하고 추가 참가신청을 열었습니다!"
+            : "참가신청 접수를 시작했습니다."
+        );
       }
     } catch {
-      alert("상태 변경에 실패했습니다.");
+      alert("신청 접수 상태 변경 실패");
+    }
+  };
+
+  // Close Application (Manual Stop)
+  const handleCloseApplication = async () => {
+    if (!session) return;
+    try {
+      const res = await fetch("/api/admin/session", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isOpen: false,
+          status: "CLOSED",
+          isForceOpen: false,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSession(data.session);
+        alert("오늘 참가신청을 마감 처리했습니다.");
+      }
+    } catch {
+      alert("신청 마감 처리 실패");
+    }
+  };
+
+  // Delete today's applicant (Cancel and restore capacity)
+  const handleDeleteApplicant = async (recordId: string, name: string) => {
+    if (
+      !confirm(
+        "해당 학생의 오늘 신청 내역을 삭제하시겠습니까? 신청 정원이 1명 복구됩니다."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/records?id=${recordId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || "신청 내역이 성공적으로 삭제되었습니다.");
+        fetchAdminData();
+      } else {
+        alert(data.message || "신청 내역 삭제에 실패했습니다.");
+      }
+    } catch {
+      alert("신청 내역 삭제 중 오류가 발생했습니다.");
     }
   };
 
@@ -414,7 +490,7 @@ export default function AdminPage() {
     }
   };
 
-  // Manual Add Student
+  // Manual Add Student (미완주/접수 상태로 등록)
   const handleManualAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualNum.trim() || !manualName.trim()) {
@@ -422,6 +498,7 @@ export default function AdminPage() {
       return;
     }
 
+    setManualLoading(true);
     try {
       const res = await fetch("/api/admin/manual-add", {
         method: "POST",
@@ -429,10 +506,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           studentNumber: manualNum.trim(),
           name: manualName.trim(),
-          distanceKm: manualDist,
-          durationMinutes: manualMin,
-          durationSeconds: manualSec,
-          isDoubleMileage: manualDouble,
+          note: manualNote.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -441,12 +515,15 @@ export default function AdminPage() {
         setShowManualAdd(false);
         setManualNum("");
         setManualName("");
+        setManualNote("");
         fetchAdminData();
       } else {
         alert(data.message || "수동 등록 실패");
       }
     } catch {
       alert("수동 등록 요청 오류");
+    } finally {
+      setManualLoading(false);
     }
   };
 
@@ -871,45 +948,87 @@ export default function AdminPage() {
             </p>
           </div>
 
-          {/* Card 2: Application Open / Close Toggle */}
+          {/* Card 2: Application Open / Close Toggle & Force Re-open */}
           <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-3">
             <div className="flex items-center justify-between text-xs font-bold text-slate-500">
               <span>참가 신청 접수 제어</span>
               <span
-                className={`text-[11px] font-black px-2 py-0.5 rounded-full ${
-                  session.isOpen
+                className={`text-[11px] font-black px-2.5 py-0.5 rounded-full ${
+                  session.isForceOpen
+                    ? "bg-purple-100 text-purple-700 border border-purple-200"
+                    : session.isOpen && session.status === "OPEN"
                     ? "bg-emerald-100 text-emerald-700"
+                    : session.status === "CLOSED"
+                    ? "bg-slate-200 text-slate-700"
+                    : session.status === "READY"
+                    ? "bg-amber-100 text-amber-700"
                     : "bg-slate-200 text-slate-600"
                 }`}
               >
-                {session.isOpen ? "접수 진행 중" : "신청 마감됨"}
+                {session.isForceOpen
+                  ? "⚡ 추가 접수 중 (정원/시간 해제)"
+                  : session.isOpen && session.status === "OPEN"
+                  ? "🟢 접수 진행 중"
+                  : session.status === "CLOSED"
+                  ? "오늘 운영 완료 (접수 마감됨)"
+                  : session.status === "READY"
+                  ? "07:40 오픈 예정"
+                  : "신청 마감됨"}
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={toggleApplicationOpen}
-                className={`w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all ${
-                  session.isOpen
-                    ? "bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200"
-                    : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20"
-                }`}
-              >
-                {session.isOpen ? (
-                  <>
+            {/* 안내 문구 동기화 */}
+            <p className="text-[11px] text-slate-500 leading-tight">
+              {session.isForceOpen
+                ? "선착순 30명 제한 및 시간(08:30) 제한이 해제되어 학생 추가 접수가 진행 중입니다."
+                : session.isOpen && session.status === "OPEN"
+                ? "학생 모바일에서 실시간 선착순 30명 신청을 접수받고 있습니다."
+                : session.status === "CLOSED"
+                ? "오늘 운영 완료 (접수 마감됨) - 08:30 경과 또는 정원 마감 상태입니다."
+                : "신청 대기 상태입니다."}
+            </p>
+
+            <div className="space-y-2">
+              {session.isOpen ? (
+                <div className="space-y-2">
+                  <button
+                    onClick={handleCloseApplication}
+                    className="w-full py-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-black text-xs sm:text-sm flex items-center justify-center gap-2 transition-all"
+                  >
                     <X className="w-4 h-4" />
-                    신청 마감하기 (정지)
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    지금 신청 시작하기 (오픈)
-                  </>
-                )}
-              </button>
+                    신청 마감하기 (접수 종료)
+                  </button>
+                  {!session.isForceOpen && (
+                    <button
+                      onClick={() => handleOpenApplication(true)}
+                      className="w-full py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-extrabold text-xs flex items-center justify-center gap-1.5 transition-all"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      30명 정원 해제 (추가 모집으로 확장)
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => handleOpenApplication(true)}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 transition-all active:scale-95"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                    신청 재개 / 추가 접수 열기 (제한 해제)
+                  </button>
+                  <button
+                    onClick={() => handleOpenApplication(false)}
+                    className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center gap-1 transition-all"
+                  >
+                    <Check className="w-3.5 h-3.5 text-slate-500" />
+                    정규 30명 기본 접수 오픈
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center justify-between pt-1 border-t border-slate-100">
               <span className="text-xs font-bold text-slate-600">
                 마일리지 2배(x2) 보너스:
               </span>
@@ -1007,6 +1126,22 @@ export default function AdminPage() {
           <Search className="w-4 h-4" />
           전체 누적 기록 및 학생 관리
         </button>
+        <button
+          onClick={() => setActiveTab("uncompleted")}
+          className={`pb-3 text-xs sm:text-sm font-black transition-colors flex items-center gap-1.5 border-b-2 whitespace-nowrap ${
+            activeTab === "uncompleted"
+              ? "border-amber-600 text-amber-600"
+              : "border-transparent text-slate-500 hover:text-slate-900"
+          }`}
+        >
+          <AlertCircle className="w-4 h-4 text-amber-500" />
+          ⭐ 미완주 학생 관리
+          {uncompletedCount > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 text-[10px] font-black rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+              {uncompletedCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Tab Content 1: Today's Certification Desk */}
@@ -1043,7 +1178,7 @@ export default function AdminPage() {
                       <th className="py-3 px-4">상태</th>
                       <th className="py-3 px-4">거리 / 시간 / 페이스</th>
                       <th className="py-3 px-4">마일리지</th>
-                      <th className="py-3 px-4 text-center">인증 처리</th>
+                      <th className="py-3 px-4 text-center">인증 및 신청 관리</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1111,16 +1246,26 @@ export default function AdminPage() {
                           )}
                         </td>
                         <td className="py-3.5 px-4 text-center">
-                          <button
-                            onClick={() => openCertification(item)}
-                            className={`px-3 py-1.5 rounded-xl font-black text-xs transition-all ${
-                              item.isCertified
-                                ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                : "bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                            }`}
-                          >
-                            {item.isCertified ? "기록 수정" : "완주 인증"}
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => openCertification(item)}
+                              className={`px-3 py-1.5 rounded-xl font-black text-xs transition-all ${
+                                item.isCertified
+                                  ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                  : "bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                              }`}
+                            >
+                              {item.isCertified ? "기록 수정" : "완주 인증"}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteApplicant(item.id, item.studentName)}
+                              className="px-2 py-1.5 rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 text-xs font-bold transition-all flex items-center gap-1"
+                              title="오늘 신청 내역 삭제"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">삭제</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1433,6 +1578,110 @@ export default function AdminPage() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Content 4: Uncompleted Students Management */}
+      {activeTab === "uncompleted" && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+            <div className="relative w-full sm:w-80">
+              <input
+                type="text"
+                placeholder="미완주 학생 학번 또는 이름 검색"
+                value={uncompletedSearch}
+                onChange={(e) => setUncompletedSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              />
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500">
+                총 미완주 누적: <strong className="text-amber-600">{allRecords.filter((r) => !r.isCertified).length}</strong>명
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead className="bg-amber-50/60 border-b border-amber-200/60 text-slate-600 font-bold">
+                  <tr>
+                    <th className="py-3 px-4">신청일자</th>
+                    <th className="py-3 px-4">학번</th>
+                    <th className="py-3 px-4">이름</th>
+                    <th className="py-3 px-4">학년/반/번호</th>
+                    <th className="py-3 px-4">신청시각(KST)</th>
+                    <th className="py-3 px-4">상태</th>
+                    <th className="py-3 px-4 text-center">관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {allRecords
+                    .filter((r) => !r.isCertified)
+                    .filter((r) => {
+                      if (!uncompletedSearch.trim()) return true;
+                      const q = uncompletedSearch.trim().toLowerCase();
+                      return (
+                        r.studentNumber.toLowerCase().includes(q) ||
+                        r.studentName.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((r) => (
+                      <tr key={r.id} className="hover:bg-amber-50/30 transition-colors">
+                        <td className="py-3.5 px-4 font-semibold text-slate-700">
+                          {r.sessionDate}
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900">
+                          {r.studentNumber}
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-slate-800">
+                          {r.studentName}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-600 font-medium">
+                          {formatStudentNumber(r.studentNumber)}
+                        </td>
+                        <td className="py-3.5 px-4 text-slate-500">
+                          {formatToKSTTime(r.appliedAt)}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="text-[11px] font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-200">
+                            미완주
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => openEditHistory(r)}
+                              className="px-2.5 py-1 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1"
+                              title="사후 완주 인증 (거리/시간 입력)"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              사후 완주 인증
+                            </button>
+                            <button
+                              onClick={() => handleDeleteRecord(r.id, r.studentName)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="미완주 허수 기록 영구 삭제"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  {allRecords.filter((r) => !r.isCertified).length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-400">
+                        미완주 상태의 학생 기록이 없습니다. 모두 완주 처리되었습니다!
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1934,7 +2183,7 @@ export default function AdminPage() {
             <div className="bg-slate-900 p-5 text-white flex justify-between items-center">
               <div>
                 <span className="text-xs font-bold text-blue-400">현장 본부석</span>
-                <h3 className="text-lg font-black">미신청 학생 수동 등록 & 인증</h3>
+                <h3 className="text-lg font-black">현장 미신청 학생 수동 접수</h3>
               </div>
               <button
                 onClick={() => setShowManualAdd(false)}
@@ -1945,100 +2194,86 @@ export default function AdminPage() {
             </div>
 
             <form onSubmit={handleManualAddSubmit} className="p-6 space-y-4">
+              <div className="p-3 bg-blue-50/70 border border-blue-200/70 rounded-2xl text-xs text-blue-800 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <span className="inline-block w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                  신청 접수(미완주 / 인증 대기) 상태로 등록됩니다.
+                </p>
+                <p className="text-[11px] text-blue-700">
+                  등록 즉시 오늘 완주 인증 데스크에 추가되며, 학생이 러닝을 마친 후 현장에서 [완주 인증하기]를 진행해 주세요.
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-slate-700">
-                    학번 (5자리)
+                    학번 (5자리) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
-                    placeholder="10101"
+                    placeholder="예: 10101"
+                    maxLength={5}
                     value={manualNum}
                     onChange={(e) => setManualNum(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     required
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-slate-700">
-                    이름
+                    학생 이름 <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     placeholder="홍길동"
                     value={manualName}
                     onChange={(e) => setManualName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                     required
                   />
                 </div>
               </div>
 
+              {/* 학년/반/번호 안내 박스 */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-slate-700">
-                  달린 거리 (km)
+                  학년 / 반 / 번호
                 </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={manualDist}
-                  onChange={(e) => setManualDist(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">
-                  달린 시간
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="number"
-                    placeholder="분"
-                    value={manualMin}
-                    onChange={(e) => setManualMin(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-center"
-                  />
-                  <input
-                    type="number"
-                    placeholder="초"
-                    value={manualSec}
-                    onChange={(e) => setManualSec(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-center"
-                  />
+                <div className="px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700">
+                  {manualNum.trim().length === 5 && !isNaN(Number(manualNum))
+                    ? formatStudentNumber(manualNum.trim())
+                    : "학번 5자리를 입력하면 자동으로 표시됩니다."}
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="manualDouble"
-                  checked={manualDouble}
-                  onChange={(e) => setManualDouble(e.target.checked)}
-                  className="w-4 h-4 text-purple-600 rounded"
-                />
-                <label
-                  htmlFor="manualDouble"
-                  className="text-xs font-bold text-slate-700"
-                >
-                  ⚡ 마일리지 2배(x2) 적용
+              {/* 관리자 메모 */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  관리자 메모 (선택)
                 </label>
+                <input
+                  type="text"
+                  placeholder="예: 현장 선착순 추가 접수"
+                  value={manualNote}
+                  onChange={(e) => setManualNote(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
               </div>
 
               <div className="pt-2 flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowManualAdd(false)}
-                  className="w-1/3 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs"
+                  className="w-1/3 py-3 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors"
                 >
-                  닫기
+                  취소
                 </button>
                 <button
                   type="submit"
-                  className="w-2/3 py-3 rounded-xl bg-slate-900 text-white font-black text-xs hover:bg-slate-800"
+                  disabled={manualLoading}
+                  className="w-2/3 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-md transition-all active:scale-95 disabled:bg-slate-400"
                 >
-                  현장 등록 및 인증 완료
+                  {manualLoading ? "등록 중..." : "현장 신청 접수 (인증 대기 등록)"}
                 </button>
               </div>
             </form>
