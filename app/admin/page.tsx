@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   ShieldCheck,
   Lock,
@@ -22,6 +22,7 @@ import {
   Sparkles,
   Ban,
   AlertCircle,
+  ArrowUpDown,
 } from "lucide-react";
 
 interface TodaySession {
@@ -135,6 +136,46 @@ export default function AdminPage() {
 
   // Uncompleted Records View
   const [uncompletedSearch, setUncompletedSearch] = useState("");
+  const [uncompletedSortDesc, setUncompletedSortDesc] = useState(false);
+
+  // Student cumulative stats map (total, uncompleted, certified)
+  const studentStatsMap = useMemo(() => {
+    const stats: Record<string, { total: number; uncompleted: number; certified: number }> = {};
+    allRecords.forEach((r) => {
+      if (!stats[r.studentNumber]) {
+        stats[r.studentNumber] = { total: 0, uncompleted: 0, certified: 0 };
+      }
+      stats[r.studentNumber].total += 1;
+      if (!r.isCertified) {
+        stats[r.studentNumber].uncompleted += 1;
+      } else {
+        stats[r.studentNumber].certified += 1;
+      }
+    });
+    return stats;
+  }, [allRecords]);
+
+  // Memoized uncompleted records list with search & sort
+  const filteredUncompletedRecords = useMemo(() => {
+    let list = allRecords.filter((r) => !r.isCertified);
+    if (uncompletedSearch.trim()) {
+      const q = uncompletedSearch.trim().toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.studentNumber.toLowerCase().includes(q) ||
+          r.studentName.toLowerCase().includes(q)
+      );
+    }
+    if (uncompletedSortDesc) {
+      list = [...list].sort((a, b) => {
+        const countA = studentStatsMap[a.studentNumber]?.uncompleted || 0;
+        const countB = studentStatsMap[b.studentNumber]?.uncompleted || 0;
+        if (countB !== countA) return countB - countA;
+        return b.sessionDate.localeCompare(a.sessionDate);
+      });
+    }
+    return list;
+  }, [allRecords, uncompletedSearch, uncompletedSortDesc, studentStatsMap]);
 
   // History Record Edit (Post-Certification)
   const [editingHistoryRecord, setEditingHistoryRecord] = useState<ApplicantRecord | null>(null);
@@ -1589,20 +1630,36 @@ export default function AdminPage() {
       {activeTab === "uncompleted" && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-            <div className="relative w-full sm:w-80">
-              <input
-                type="text"
-                placeholder="미완주 학생 학번 또는 이름 검색"
-                value={uncompletedSearch}
-                onChange={(e) => setUncompletedSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-              />
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+              <div className="relative w-full sm:w-80">
+                <input
+                  type="text"
+                  placeholder="미완주 학생 학번 또는 이름 검색"
+                  value={uncompletedSearch}
+                  onChange={(e) => setUncompletedSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setUncompletedSortDesc(!uncompletedSortDesc)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border shadow-sm ${
+                  uncompletedSortDesc
+                    ? "bg-rose-600 text-white border-rose-600"
+                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                }`}
+                title="상습 미완주 학생(누적 미완주 많은 순)을 상단에 정렬합니다."
+              >
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                {uncompletedSortDesc ? "미완주 많은 순 정렬 중" : "미완주 많은 순 정렬"}
+              </button>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-500">
-                총 미완주 누적: <strong className="text-amber-600">{allRecords.filter((r) => !r.isCertified).length}</strong>명
+                총 미완주 누적: <strong className="text-amber-600">{allRecords.filter((r) => !r.isCertified).length}</strong>건
               </span>
             </div>
           </div>
@@ -1618,21 +1675,18 @@ export default function AdminPage() {
                     <th className="py-3 px-4">학년/반/번호</th>
                     <th className="py-3 px-4">신청시각(KST)</th>
                     <th className="py-3 px-4">상태</th>
+                    <th className="py-3 px-4">누적 미완주 현황</th>
                     <th className="py-3 px-4 text-center">관리</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {allRecords
-                    .filter((r) => !r.isCertified)
-                    .filter((r) => {
-                      if (!uncompletedSearch.trim()) return true;
-                      const q = uncompletedSearch.trim().toLowerCase();
-                      return (
-                        r.studentNumber.toLowerCase().includes(q) ||
-                        r.studentName.toLowerCase().includes(q)
-                      );
-                    })
-                    .map((r) => (
+                  {filteredUncompletedRecords.map((r) => {
+                    const st = studentStatsMap[r.studentNumber] || {
+                      total: 1,
+                      uncompleted: 1,
+                      certified: 0,
+                    };
+                    return (
                       <tr key={r.id} className="hover:bg-amber-50/30 transition-colors">
                         <td className="py-3.5 px-4 font-semibold text-slate-700">
                           {r.sessionDate}
@@ -1654,6 +1708,29 @@ export default function AdminPage() {
                             미완주
                           </span>
                         </td>
+                        <td className="py-3.5 px-4">
+                          <div
+                            className="flex flex-col items-start gap-1"
+                            title={`총 신청 ${st.total}회 중 ${st.uncompleted}회 미완주 (완주 ${st.certified}회)`}
+                          >
+                            {st.uncompleted >= 3 ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-black text-rose-800 bg-rose-100 px-2.5 py-0.5 rounded-full border border-rose-300 shadow-sm">
+                                🚨 상습 {st.uncompleted}회
+                              </span>
+                            ) : st.uncompleted === 2 ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-700 bg-orange-50 px-2.5 py-0.5 rounded-full border border-orange-200 shadow-sm">
+                                ⚠️ 누적 2회
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                                미완주 1회
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              총 {st.total}회 중 {st.uncompleted}회 미완주
+                            </span>
+                          </div>
+                        </td>
                         <td className="py-3.5 px-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             <button
@@ -1674,11 +1751,14 @@ export default function AdminPage() {
                           </div>
                         </td>
                       </tr>
-                    ))}
-                  {allRecords.filter((r) => !r.isCertified).length === 0 && (
+                    );
+                  })}
+                  {filteredUncompletedRecords.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-12 text-center text-slate-400">
-                        미완주 상태의 학생 기록이 없습니다. 모두 완주 처리되었습니다!
+                      <td colSpan={8} className="py-12 text-center text-slate-400">
+                        {uncompletedSearch.trim()
+                          ? "검색 조건에 일치하는 미완주 기록이 없습니다."
+                          : "미완주 상태의 학생 기록이 없습니다. 모두 완주 처리되었습니다!"}
                       </td>
                     </tr>
                   )}

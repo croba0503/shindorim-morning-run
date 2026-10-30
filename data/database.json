@@ -147,6 +147,18 @@
       "maxCapacity": 30,
       "isDoubleMileage": false,
       "status": "READY"
+    },
+    {
+      "id": "sess-2026-10-30",
+      "date": "2026-10-30",
+      "dayOfWeek": "금",
+      "sessionNumber": 11,
+      "code": "5755",
+      "isOpen": false,
+      "maxCapacity": 30,
+      "isDoubleMileage": false,
+      "status": "CLOSED",
+      "isForceOpen": false
     }
   ],
   "students": [
@@ -160,7 +172,7 @@
     {
       "id": "stu-10105",
       "studentNumber": "10105",
-      "name": "김민준",
+      "name": "김민수",
       "grade": 1,
       "createdAt": "2026-09-01T08:00:00Z"
     },
