@@ -15,6 +15,8 @@ import {
   Clock,
   Sparkles,
   Ticket,
+  CloudRain,
+  AlertTriangle,
 } from "lucide-react";
 
 interface TodaySessionInfo {
@@ -255,36 +257,83 @@ export default function ApplyPage() {
         )}
 
         {/* Realtime Quota Bar */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-center text-xs font-bold">
-            <span className="text-slate-600">선착순 정원 현황</span>
-            <span className="text-slate-900">
-              현재 <strong className="text-blue-600 text-sm font-extrabold">{data ? data.stats.applicantsCount : 0}</strong> / 30명
-              <span className="text-emerald-600 ml-1.5 font-bold">
-                (잔여 {data ? data.stats.remainingSlots : 30}자리)
+        {data?.session.status !== "CANCELLED" ? (
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-xs font-bold">
+              <span className="text-slate-600">선착순 정원 현황</span>
+              <span className="text-slate-900">
+                현재 <strong className="text-blue-600 text-sm font-extrabold">{data ? data.stats.applicantsCount : 0}</strong> / 30명
+                <span className="text-emerald-600 ml-1.5 font-bold">
+                  (잔여 {data ? data.stats.remainingSlots : 30}자리)
+                </span>
               </span>
-            </span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden p-0.5 border border-slate-200">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${
+                  isFull
+                    ? "bg-rose-500"
+                    : "bg-gradient-to-r from-blue-500 to-emerald-500"
+                }`}
+                style={{
+                  width: `${Math.min(
+                    100,
+                    ((data?.stats.applicantsCount || 0) / 30) * 100
+                  )}%`,
+                }}
+              />
+            </div>
           </div>
-          <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden p-0.5 border border-slate-200">
-            <div
-              className={`h-full rounded-full transition-all duration-700 ${
-                isFull
-                  ? "bg-rose-500"
-                  : "bg-gradient-to-r from-blue-500 to-emerald-500"
-              }`}
-              style={{
-                width: `${Math.min(
-                  100,
-                  ((data?.stats.applicantsCount || 0) / 30) * 100
-                )}%`,
-              }}
-            />
+        ) : (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-center text-xs font-bold text-rose-700">
+            ⚠️ 기상 악화(우천 등)로 인해 오늘의 선착순 정원 접수가 중단되었습니다.
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Application Form */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-5">
+      {/* Application Form or Big Cancelled Ticket */}
+      {data?.session.status === "CANCELLED" ? (
+        <div className="bg-white rounded-3xl p-8 sm:p-10 border-2 border-rose-200 shadow-xl shadow-rose-950/5 text-center space-y-6 animate-fade-in">
+          <div className="w-20 h-20 rounded-3xl bg-rose-50 border-2 border-rose-100 text-rose-500 mx-auto flex items-center justify-center shadow-inner">
+            <CloudRain className="w-10 h-10 animate-bounce" />
+          </div>
+
+          <div className="space-y-2.5">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-100 text-rose-700 text-xs font-black">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              기상 악화 운영 취소 안내
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              오늘 아침달리기는 기상 악화로 취소되었습니다
+            </h2>
+            <div className="pt-1">
+              <p className="text-sm font-bold text-rose-600 bg-rose-50/80 border border-rose-200/60 rounded-xl py-2 px-4 inline-block">
+                취소 사유: {data.session.cancelReason || "우천 및 노면 안전 우려"}
+              </p>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed pt-1">
+              비나 눈, 운동장 상태 불량 등으로 인해 학생들의 안전사고를 예방하고자 오늘 프로그램은 운영하지 않습니다.
+              실내에서 안전하고 활기찬 아침 시간을 보내세요!
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5"
+            >
+              메인 홈으로 이동
+            </Link>
+            <Link
+              href="/schedule"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm border border-slate-200 shadow-sm transition-all flex items-center justify-center gap-1.5"
+            >
+              월간 일정 캘린더 보기
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-5">
         <h2 className="text-lg font-black text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
           <Flame className="w-5 h-5 text-orange-500" />
           참가 정보 입력
@@ -417,6 +466,7 @@ export default function ApplyPage() {
           )}
         </form>
       </div>
+      )}
 
       {/* Ticket Modal Pop-up on Success */}
       {ticket && (

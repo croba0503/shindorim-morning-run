@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     }
     if (session.status === "CANCELLED") {
       return NextResponse.json(
-        { success: false, message: `오늘 아침달리기는 취소되었습니다. (${session.cancelReason || "기상 악화"})` },
+        { success: false, message: "기상 악화로 취소된 차시에는 신청할 수 없습니다." },
         { status: 400 }
       );
     }

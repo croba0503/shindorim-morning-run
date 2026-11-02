@@ -159,6 +159,18 @@
       "isDoubleMileage": false,
       "status": "CLOSED",
       "isForceOpen": false
+    },
+    {
+      "id": "sess-2026-11-03",
+      "date": "2026-11-03",
+      "dayOfWeek": "화",
+      "sessionNumber": 12,
+      "code": "3940",
+      "isOpen": false,
+      "maxCapacity": 30,
+      "isDoubleMileage": false,
+      "status": "CANCELLED",
+      "cancelReason": "우천으로 인한 당일 취소"
     }
   ],
   "students": [
@@ -726,10 +738,10 @@
     },
     {
       "id": "not-2",
-      "title": "⚠️ 기상 악화(우천/미세먼지) 시 운동장 진행 안내",
-      "content": "우천 및 미세먼지 '나쁨' 이상 시 당일 아침달리기는 자동으로 안전을 위해 실내체육관 또는 취소로 전환됩니다.",
+      "title": "⚠️ [당일 아침달리기 취소 안내]",
+      "content": "2026-11-03 (화) 아침달리기는 우천으로 인한 당일 취소되었습니다. 학생 여러분은 안전에 유의하여 교실로 입실해 주세요.",
       "type": "URGENT",
-      "isActive": false,
+      "isActive": true,
       "createdAt": "2026-09-10T00:00:00Z"
     }
   ],
