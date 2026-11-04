@@ -83,8 +83,11 @@ export async function PATCH(req: Request) {
 
     if (body.status !== undefined) {
       session.status = body.status;
-      if (body.status === "OPEN") {
-        session.isOpen = true;
+      if (body.status === "OPEN" || body.status === "READY") {
+        session.isOpen = body.status === "OPEN";
+        if (body.cancelReason === undefined) {
+          delete session.cancelReason;
+        }
       }
       if (body.status === "CLOSED" || body.status === "CANCELLED" || body.status === "OFF") {
         session.isOpen = false;
@@ -93,7 +96,11 @@ export async function PATCH(req: Request) {
     }
 
     if (body.cancelReason !== undefined) {
-      session.cancelReason = body.cancelReason;
+      if (body.cancelReason) {
+        session.cancelReason = body.cancelReason;
+      } else {
+        delete session.cancelReason;
+      }
     }
 
     // Update in sessions array

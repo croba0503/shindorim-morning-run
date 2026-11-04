@@ -440,10 +440,10 @@ export async function getOrCreateTodaySession(db: AppDatabase): Promise<Session>
       dayOfWeek,
       sessionNumber: db.sessions.filter((s) => s.status !== "OFF").length + 1,
       code: randomCode,
-      isOpen: true,
+      isOpen: false,
       maxCapacity: 30,
       isDoubleMileage: false,
-      status: "OPEN",
+      status: "READY",
     };
     db.sessions.push(session);
     await writeDb(db);

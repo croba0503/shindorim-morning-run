@@ -17,6 +17,8 @@ import {
   Ticket,
   CloudRain,
   AlertTriangle,
+  Coffee,
+  CalendarX,
 } from "lucide-react";
 
 interface TodaySessionInfo {
@@ -237,7 +239,7 @@ export default function ApplyPage() {
                 {data?.session.status === "CANCELLED"
                   ? `취소됨 (${data.session.cancelReason || "기상 악화"})`
                   : data?.session.status === "OFF"
-                  ? `🚫 미운영 (${data.session.cancelReason || "휴무"})`
+                  ? `☕ 정기 미운영 (${data.session.cancelReason || "휴무"})`
                   : data?.session.status === "READY"
                   ? "🕒 07:40 오픈 예정"
                   : data?.session.status === "CLOSED"
@@ -257,7 +259,7 @@ export default function ApplyPage() {
         )}
 
         {/* Realtime Quota Bar */}
-        {data?.session.status !== "CANCELLED" ? (
+        {data?.session.status !== "CANCELLED" && data?.session.status !== "OFF" ? (
           <div className="space-y-2">
             <div className="flex justify-between items-center text-xs font-bold">
               <span className="text-slate-600">선착순 정원 현황</span>
@@ -284,6 +286,10 @@ export default function ApplyPage() {
               />
             </div>
           </div>
+        ) : data?.session.status === "OFF" ? (
+          <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl text-center text-xs font-bold text-slate-700">
+            📢 오늘({data?.session.date})은 아침달리기 정기 미운영일입니다. ({data?.session.cancelReason || "공휴일 및 학사 일정"})
+          </div>
         ) : (
           <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-center text-xs font-bold text-rose-700">
             ⚠️ 기상 악화(우천 등)로 인해 오늘의 선착순 정원 접수가 중단되었습니다.
@@ -291,7 +297,7 @@ export default function ApplyPage() {
         )}
       </div>
 
-      {/* Application Form or Big Cancelled Ticket */}
+      {/* Application Form or Big Cancelled / OFF Ticket */}
       {data?.session.status === "CANCELLED" ? (
         <div className="bg-white rounded-3xl p-8 sm:p-10 border-2 border-rose-200 shadow-xl shadow-rose-950/5 text-center space-y-6 animate-fade-in">
           <div className="w-20 h-20 rounded-3xl bg-rose-50 border-2 border-rose-100 text-rose-500 mx-auto flex items-center justify-center shadow-inner">
@@ -323,6 +329,46 @@ export default function ApplyPage() {
               className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5"
             >
               메인 홈으로 이동
+            </Link>
+            <Link
+              href="/schedule"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm border border-slate-200 shadow-sm transition-all flex items-center justify-center gap-1.5"
+            >
+              월간 일정 캘린더 보기
+            </Link>
+          </div>
+        </div>
+      ) : data?.session.status === "OFF" ? (
+        <div className="bg-white rounded-3xl p-8 sm:p-10 border-2 border-slate-200 shadow-xl shadow-slate-950/5 text-center space-y-6 animate-fade-in">
+          <div className="w-20 h-20 rounded-3xl bg-slate-100 border-2 border-slate-200 text-slate-600 mx-auto flex items-center justify-center shadow-inner">
+            <Coffee className="w-10 h-10" />
+          </div>
+
+          <div className="space-y-2.5">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-black">
+              <CalendarX className="w-3.5 h-3.5" />
+              정기 미운영일 안내
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              오늘은 아침달리기 운영일이 아닙니다
+            </h2>
+            <div className="pt-1">
+              <p className="text-sm font-bold text-slate-700 bg-slate-100 border border-slate-200 rounded-xl py-2 px-4 inline-block">
+                미운영 사유: {data.session.cancelReason || "공휴일 및 학사 일정에 따른 정기 미운영"}
+              </p>
+            </div>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed pt-1">
+              신도림중 아침달리기는 학사일정 및 공휴일 등을 고려하여 정기적으로 쉬어갑니다.
+              다음 정규 운영일에 운동장에서 건강한 모습으로 만나요!
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href="/"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5"
+            >
+              메인으로 돌아가기
             </Link>
             <Link
               href="/schedule"

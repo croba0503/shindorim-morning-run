@@ -45,9 +45,9 @@ export async function POST(req: Request) {
 
     if (action === "RESTORE_TODAY") {
       // Re-open or restore today's session
-      session.status = "OPEN";
+      session.status = "READY";
       session.isOpen = true;
-      session.cancelReason = undefined;
+      delete session.cancelReason;
 
       // Deactivate urgent notice
       const urgentNotice = db.notices.find((n) => n.type === "URGENT");
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
       return NextResponse.json({
         success: true,
-        message: "오늘 아침달리기가 정상 진행(신청 접수) 상태로 복구되었습니다.",
+        message: "오늘 아침달리기가 정상 운영 상태로 복구되었습니다.",
         session,
       });
     }

@@ -169,8 +169,18 @@
       "isOpen": false,
       "maxCapacity": 30,
       "isDoubleMileage": false,
-      "status": "CANCELLED",
-      "cancelReason": "우천으로 인한 당일 취소"
+      "status": "READY"
+    },
+    {
+      "id": "sess-2026-11-05",
+      "date": "2026-11-05",
+      "dayOfWeek": "목",
+      "sessionNumber": 13,
+      "code": "3940",
+      "isOpen": false,
+      "maxCapacity": 30,
+      "isDoubleMileage": false,
+      "status": "READY"
     }
   ],
   "students": [
@@ -739,9 +749,9 @@
     {
       "id": "not-2",
       "title": "⚠️ [당일 아침달리기 취소 안내]",
-      "content": "2026-11-03 (화) 아침달리기는 우천으로 인한 당일 취소되었습니다. 학생 여러분은 안전에 유의하여 교실로 입실해 주세요.",
+      "content": "2026-11-05 (목) 아침달리기는 우천 취소 테스트되었습니다. 학생 여러분은 안전에 유의하여 교실로 입실해 주세요.",
       "type": "URGENT",
-      "isActive": true,
+      "isActive": false,
       "createdAt": "2026-09-10T00:00:00Z"
     }
   ],

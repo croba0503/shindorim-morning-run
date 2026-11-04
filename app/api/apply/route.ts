@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     // Check OFF / CANCELLED status
     if (session.status === "OFF") {
       return NextResponse.json(
-        { success: false, message: `오늘 아침달리기는 운영하지 않습니다. (${session.cancelReason || "휴무"})` },
+        { success: false, message: "오늘은 정기 미운영일로 신청할 수 없습니다." },
         { status: 400 }
       );
     }
