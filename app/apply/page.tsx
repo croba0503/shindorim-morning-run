@@ -147,7 +147,18 @@ export default function ApplyPage() {
     }
   };
 
-  const isOpen = data?.session.isOpen && data?.session.status === "OPEN";
+  const todayKST = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
+  const todaySession = data?.session;
+  const isTodaySession = Boolean(todaySession && todaySession.date === todayKST);
+  const isCancelled = !loading && Boolean(isTodaySession && todaySession?.status === "CANCELLED");
+  const isOff = !loading && Boolean(isTodaySession && todaySession?.status === "OFF");
+  const isOpen = !loading && Boolean(isTodaySession && todaySession?.isOpen && todaySession?.status === "OPEN");
   const remaining = data?.stats.remainingSlots ?? 30;
   const isFull = remaining <= 0;
 
@@ -168,7 +179,7 @@ export default function ApplyPage() {
       </div>
 
       {/* 07:40 Pre-open announcement banner */}
-      {data?.session.status === "READY" && (
+      {!loading && isTodaySession && todaySession?.status === "READY" && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 text-xs sm:text-sm text-amber-900 font-bold animate-fade-in shadow-sm">
           <Clock className="w-5 h-5 text-amber-600 flex-shrink-0 animate-pulse" />
           <div>
@@ -179,7 +190,7 @@ export default function ApplyPage() {
       )}
 
       {/* Closed announcement banner */}
-      {data?.session.status === "CLOSED" && (
+      {!loading && isTodaySession && todaySession?.status === "CLOSED" && (
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center space-y-2 animate-fade-in shadow-sm">
           <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-600 mx-auto flex items-center justify-center">
             <CheckCircle2 className="w-5 h-5" />
@@ -213,13 +224,13 @@ export default function ApplyPage() {
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-blue-600" />
             <span className="font-extrabold text-sm sm:text-base text-slate-800">
-              {data ? `${data.session.date} (${data.session.dayOfWeek})` : "차시 확인 중..."}
+              {todaySession ? `${todaySession.date} (${todaySession.dayOfWeek})` : "차시 확인 중..."}
             </span>
-            {data?.session.sessionNumber && (
+            {todaySession?.sessionNumber ? (
               <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                제 {data.session.sessionNumber}차시
+                제 {todaySession?.sessionNumber}차시
               </span>
-            )}
+            ) : null}
           </div>
 
           <div>
@@ -230,19 +241,19 @@ export default function ApplyPage() {
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                 신청 접수 중
               </span>
-            ) : isFull ? (
+            ) : isFull && isTodaySession ? (
               <span className="text-xs font-bold text-rose-700 bg-rose-100 px-3 py-1 rounded-full">
                 선착순 30명 마감
               </span>
             ) : (
               <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
-                {data?.session.status === "CANCELLED"
-                  ? `취소됨 (${data.session.cancelReason || "기상 악화"})`
-                  : data?.session.status === "OFF"
-                  ? `☕ 정기 미운영 (${data.session.cancelReason || "휴무"})`
-                  : data?.session.status === "READY"
+                {isCancelled
+                  ? `취소됨 (${todaySession?.cancelReason || "기상 악화"})`
+                  : isOff
+                  ? `☕ 정기 미운영 (${todaySession?.cancelReason || "휴무"})`
+                  : isTodaySession && todaySession?.status === "READY"
                   ? "🕒 07:40 오픈 예정"
-                  : data?.session.status === "CLOSED"
+                  : isTodaySession && todaySession?.status === "CLOSED"
                   ? "오늘 접수 마감"
                   : "신청 준비 중"}
               </span>
@@ -251,7 +262,7 @@ export default function ApplyPage() {
         </div>
 
         {/* Bonus Badge */}
-        {data?.session.isDoubleMileage && (
+        {todaySession?.isDoubleMileage && (
           <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 flex items-center gap-2 text-xs sm:text-sm text-purple-900 font-bold">
             <Sparkles className="w-4 h-4 text-purple-600 flex-shrink-0" />
             <span>오늘은 완주 시 마일리지 2배(x2) 적립 보너스 데이입니다!</span>
@@ -259,14 +270,14 @@ export default function ApplyPage() {
         )}
 
         {/* Realtime Quota Bar */}
-        {data?.session.status !== "CANCELLED" && data?.session.status !== "OFF" ? (
+        {!isCancelled && !isOff ? (
           <div className="space-y-2">
             <div className="flex justify-between items-center text-xs font-bold">
               <span className="text-slate-600">선착순 정원 현황</span>
               <span className="text-slate-900">
-                현재 <strong className="text-blue-600 text-sm font-extrabold">{data ? data.stats.applicantsCount : 0}</strong> / 30명
+                현재 <strong className="text-blue-600 text-sm font-extrabold">{data && isTodaySession ? data.stats.applicantsCount : 0}</strong> / 30명
                 <span className="text-emerald-600 ml-1.5 font-bold">
-                  (잔여 {data ? data.stats.remainingSlots : 30}자리)
+                  (잔여 {data && isTodaySession ? data.stats.remainingSlots : 30}자리)
                 </span>
               </span>
             </div>
@@ -280,15 +291,15 @@ export default function ApplyPage() {
                 style={{
                   width: `${Math.min(
                     100,
-                    ((data?.stats.applicantsCount || 0) / 30) * 100
+                    (((data && isTodaySession) ? data.stats.applicantsCount : 0) / 30) * 100
                   )}%`,
                 }}
               />
             </div>
           </div>
-        ) : data?.session.status === "OFF" ? (
+        ) : isOff ? (
           <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl text-center text-xs font-bold text-slate-700">
-            📢 오늘({data?.session.date})은 아침달리기 정기 미운영일입니다. ({data?.session.cancelReason || "공휴일 및 학사 일정"})
+            📢 오늘({todaySession?.date})은 아침달리기 정기 미운영일입니다. ({todaySession?.cancelReason || "공휴일 및 학사 일정"})
           </div>
         ) : (
           <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-center text-xs font-bold text-rose-700">
@@ -298,7 +309,7 @@ export default function ApplyPage() {
       </div>
 
       {/* Application Form or Big Cancelled / OFF Ticket */}
-      {data?.session.status === "CANCELLED" ? (
+      {isCancelled ? (
         <div className="bg-white rounded-3xl p-8 sm:p-10 border-2 border-rose-200 shadow-xl shadow-rose-950/5 text-center space-y-6 animate-fade-in">
           <div className="w-20 h-20 rounded-3xl bg-rose-50 border-2 border-rose-100 text-rose-500 mx-auto flex items-center justify-center shadow-inner">
             <CloudRain className="w-10 h-10 animate-bounce" />
@@ -314,7 +325,7 @@ export default function ApplyPage() {
             </h2>
             <div className="pt-1">
               <p className="text-sm font-bold text-rose-600 bg-rose-50/80 border border-rose-200/60 rounded-xl py-2 px-4 inline-block">
-                취소 사유: {data.session.cancelReason || "우천 및 노면 안전 우려"}
+                취소 사유: {todaySession?.cancelReason || "우천 및 노면 안전 우려"}
               </p>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed pt-1">
@@ -338,7 +349,7 @@ export default function ApplyPage() {
             </Link>
           </div>
         </div>
-      ) : data?.session.status === "OFF" ? (
+      ) : isOff ? (
         <div className="bg-white rounded-3xl p-8 sm:p-10 border-2 border-slate-200 shadow-xl shadow-slate-950/5 text-center space-y-6 animate-fade-in">
           <div className="w-20 h-20 rounded-3xl bg-slate-100 border-2 border-slate-200 text-slate-600 mx-auto flex items-center justify-center shadow-inner">
             <Coffee className="w-10 h-10" />
@@ -354,7 +365,7 @@ export default function ApplyPage() {
             </h2>
             <div className="pt-1">
               <p className="text-sm font-bold text-slate-700 bg-slate-100 border border-slate-200 rounded-xl py-2 px-4 inline-block">
-                미운영 사유: {data.session.cancelReason || "공휴일 및 학사 일정에 따른 정기 미운영"}
+                미운영 사유: {todaySession?.cancelReason || "공휴일 및 학사 일정에 따른 정기 미운영"}
               </p>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed pt-1">

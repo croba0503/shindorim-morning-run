@@ -422,7 +422,12 @@ export async function writeDb(data: AppDatabase): Promise<void> {
 // Helper to get today's date in KST (Asia/Seoul)
 export function getTodayKST(): { todayStr: string; dayOfWeek: string } {
   const now = new Date();
-  const todayStr = now.toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+  const todayStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
   const dayOfWeek = now.toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", weekday: "short" });
   return { todayStr, dayOfWeek };
 }
@@ -447,6 +452,21 @@ export async function getOrCreateTodaySession(db: AppDatabase): Promise<Session>
     };
     db.sessions.push(session);
     await writeDb(db);
+  }
+
+  // Double check that the returned session strictly has date === todayStr
+  if (session.date !== todayStr) {
+    session = {
+      id: `sess-${todayStr}`,
+      date: todayStr,
+      dayOfWeek,
+      sessionNumber: db.sessions.filter((s) => s.status !== "OFF").length + 1,
+      code: Math.floor(1000 + Math.random() * 9000).toString(),
+      isOpen: false,
+      maxCapacity: 30,
+      isDoubleMileage: false,
+      status: "READY",
+    };
   }
 
   return session;

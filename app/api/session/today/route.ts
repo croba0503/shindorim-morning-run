@@ -8,15 +8,25 @@ export async function GET() {
     const db = await readDb();
     const { todayStr, dayOfWeek } = getTodayKST();
 
-    // 당일 날짜(YYYY-MM-DD, Asia/Seoul 기준) 매칭 조건을 엄격히 점검하여 이전 날짜 세션 오매핑 차단
+    // 1. DB에서 반드시 당일 일자(todayStr)와 일치하는 세션만 엄격 검색
     let session = db.sessions.find((s) => s.date === todayStr);
     if (!session) {
       session = await getOrCreateTodaySession(db);
     }
 
-    // 만약 여전히 날짜가 일치하지 않는 경우 당일 세션으로 안전하게 생성/초기화
+    // 2. 만약 오늘 날짜와 일치하지 않는 세션이 반환된 경우, 절대 이전 날짜 세션을 반환하지 않고 오늘 날짜 기본 세션 강제 보장
     if (session.date !== todayStr) {
-      session = await getOrCreateTodaySession(db);
+      session = {
+        id: `sess-${todayStr}`,
+        date: todayStr,
+        dayOfWeek,
+        sessionNumber: db.sessions.filter((s) => s.status !== "OFF").length + 1,
+        code: Math.floor(1000 + Math.random() * 9000).toString(),
+        isOpen: false,
+        maxCapacity: 30,
+        isDoubleMileage: false,
+        status: "READY",
+      };
     }
 
     const todayRecords = db.records.filter((r) => r.sessionId === session.id);
@@ -72,9 +82,12 @@ export async function GET() {
       }
     }
 
-    // Active notices
+    // Active notices: 오늘 당일 세션이 실제로 CANCELLED 상태일 때만 긴급 공지를 활성화하여 과거 취소 공지 누출 차단
     const activeNotices = db.notices.filter((n) => n.isActive);
-    const urgentNotice = activeNotices.find((n) => n.type === "URGENT") || null;
+    let urgentNotice = null;
+    if (session.status === "CANCELLED" && session.date === todayStr) {
+      urgentNotice = activeNotices.find((n) => n.type === "URGENT") || null;
+    }
 
     const remainingSlots = session.isForceOpen
       ? Math.max(5, session.maxCapacity - applicantsCount)

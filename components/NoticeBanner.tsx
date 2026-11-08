@@ -18,8 +18,17 @@ export default function NoticeBanner() {
     fetch("/api/session/today")
       .then((res) => res.json())
       .then((data) => {
-        if (data.success && data.urgentNotice) {
-          setUrgentNotice(data.urgentNotice);
+        if (data.success && data.urgentNotice && data.session?.status === "CANCELLED") {
+          const todayKST = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Seoul",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(new Date());
+
+          if (data.session.date === todayKST) {
+            setUrgentNotice(data.urgentNotice);
+          }
         }
       })
       .catch((err) => console.error("Notice banner error:", err));

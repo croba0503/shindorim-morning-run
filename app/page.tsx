@@ -44,6 +44,14 @@ export default function HomePage() {
   const [showCancelBanner, setShowCancelBanner] = useState(true);
   const [showOffBanner, setShowOffBanner] = useState(true);
 
+  // 대한민국 표준시(KST) 기준 오늘 날짜 문자열 (YYYY-MM-DD)
+  const todayKST = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+
   useEffect(() => {
     fetch("/api/session/today", { cache: "no-store" })
       .then((res) => res.json())
@@ -57,15 +65,19 @@ export default function HomePage() {
   }, []);
 
   const todaySession = data?.session;
-  const isCancelled = !loading && Boolean(todaySession && todaySession.status === "CANCELLED");
-  const isOpen = !loading && Boolean(todaySession?.isOpen && todaySession?.status === "OPEN");
+  // 세션의 date가 오늘 KST 날짜와 정확히 일치하는지 검증
+  const isTodaySession = Boolean(todaySession && todaySession.date === todayKST);
+  const isCancelled = !loading && Boolean(isTodaySession && todaySession?.status === "CANCELLED");
+  const isOff = !loading && Boolean(isTodaySession && todaySession?.status === "OFF");
+  const isOpen = !loading && Boolean(isTodaySession && todaySession?.isOpen && todaySession?.status === "OPEN");
+  const isReady = !loading && Boolean(isTodaySession && todaySession?.status === "READY");
   const remaining = data?.stats.remainingSlots ?? 30;
   const isFull = remaining <= 0;
 
   return (
     <>
-      {/* 긴급 취소 배너(CANCELLED) 또는 정기 미운영 배너(OFF) */}
-      {showCancelBanner && isCancelled && todaySession ? (
+      {/* 긴급 취소 배너(CANCELLED) 또는 정기 미운영 배너(OFF) - 반드시 날짜 일치(todaySession.date === todayKST) 시에만 렌더링 */}
+      {showCancelBanner && isCancelled && todaySession && todaySession.date === todayKST ? (
         <div className="bg-gradient-to-r from-rose-600 to-red-600 text-white py-2.5 px-4 text-xs sm:text-sm font-black shadow-md flex items-center justify-between gap-2 z-50 sticky top-0">
           <div className="flex items-center gap-2 max-w-4xl mx-auto flex-1 justify-center sm:justify-start">
             <span>
@@ -80,7 +92,7 @@ export default function HomePage() {
             <X className="w-4 h-4" />
           </button>
         </div>
-      ) : showOffBanner && !loading && todaySession && todaySession.status === "OFF" ? (
+      ) : showOffBanner && isOff && todaySession && todaySession.date === todayKST ? (
         <div className="bg-gradient-to-r from-slate-700 via-slate-800 to-zinc-800 text-white py-2.5 px-4 text-xs sm:text-sm font-bold shadow-md flex items-center justify-between gap-2 z-50 sticky top-0 border-b border-slate-600/50">
           <div className="flex items-center gap-2 max-w-4xl mx-auto flex-1 justify-center sm:justify-start">
             <span>
@@ -123,7 +135,7 @@ export default function HomePage() {
             </p>
 
             {/* 07:40 Pre-open announcement banner */}
-            {!loading && todaySession && todaySession.status === "READY" && (
+            {isReady && (
               <div className="max-w-md mx-auto p-3 rounded-2xl bg-amber-400/20 border border-amber-300/30 text-amber-200 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 backdrop-blur-md animate-fade-in">
                 <Clock className="w-4 h-4 text-amber-300 animate-pulse flex-shrink-0" />
                 <span>오늘 아침달리기는 07:40부터 참가신청이 시작됩니다.</span>
@@ -135,7 +147,7 @@ export default function HomePage() {
               <div className={`inline-block w-full max-w-md backdrop-blur-md rounded-2xl p-4 sm:p-5 shadow-2xl ${
                 isCancelled
                   ? "border border-rose-500/50 bg-slate-900/90 shadow-rose-950/30"
-                  : todaySession?.status === "OFF"
+                  : isOff
                   ? "border border-slate-700/60 bg-slate-900/90 shadow-slate-950/40"
                   : "bg-white/10 border border-white/20"
                 }`}>
@@ -144,14 +156,14 @@ export default function HomePage() {
                     <Clock className="w-4 h-4 text-blue-400" />
                     {loading ? (
                       "오늘의 차시 확인 중..."
-                    ) : todaySession?.status === "READY" ? (
+                    ) : isReady && todaySession ? (
                       `제${todaySession.sessionNumber}차 예정 (07:50 시작 / 07:40 접수 오픈)`
-                    ) : todaySession?.status === "CLOSED" ? (
-                      `제${todaySession.sessionNumber}차 운영 완료`
-                    ) : todaySession?.status === "OFF" ? (
+                    ) : isTodaySession && todaySession?.status === "CLOSED" ? (
+                      `제${todaySession?.sessionNumber}차 운영 완료`
+                    ) : isOff && todaySession ? (
                       `오늘의 차시: ${todaySession.date} (${todaySession.dayOfWeek}) - 미운영`
                     ) : (
-                      `오늘의 차시: ${todaySession ? `${todaySession.date} (${todaySession.dayOfWeek})` : "확인 중..."}`
+                      `오늘의 차시: ${isTodaySession && todaySession ? `${todaySession.date} (${todaySession.dayOfWeek})` : `${todayKST} 준비 중`}`
                     )}
                   </span>
                   {loading ? (
@@ -161,19 +173,19 @@ export default function HomePage() {
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                       선착순 접수 중
                     </span>
-                  ) : isFull ? (
+                  ) : isFull && isTodaySession ? (
                     <span className="text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full font-bold">
                       오늘 30명 마감
                     </span>
-                  ) : todaySession?.status === "READY" ? (
+                  ) : isReady ? (
                     <span className="text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full font-bold">
                       07:40 오픈 예정
                     </span>
-                  ) : todaySession?.status === "CLOSED" ? (
+                  ) : isTodaySession && todaySession?.status === "CLOSED" ? (
                     <span className="text-slate-300 bg-white/10 px-2.5 py-0.5 rounded-full font-bold">
-                      제${todaySession.sessionNumber}차 완료
+                      제${todaySession?.sessionNumber}차 완료
                     </span>
-                  ) : todaySession?.status === "OFF" ? (
+                  ) : isOff ? (
                     <span className="text-slate-300 bg-slate-800 border border-slate-600 px-2.5 py-0.5 rounded-full font-bold text-xs sm:text-sm">
                       ☕ 정기 미운영일
                     </span>
@@ -198,13 +210,13 @@ export default function HomePage() {
                       학생들의 안전을 위해 실내에서 안전한 아침을 보내세요. 다음 운영일에 만나요!
                     </p>
                   </div>
-                ) : todaySession?.status === "OFF" ? (
+                ) : isOff ? (
                   <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70 text-slate-200 text-xs sm:text-sm text-center space-y-1">
                     <p className="font-extrabold text-slate-200 flex items-center justify-center gap-1.5">
-                      ☕ 오늘({todaySession.date})은 아침달리기를 운영하지 않습니다.
+                      ☕ 오늘({todaySession?.date})은 아침달리기를 운영하지 않습니다.
                     </p>
                     <p className="text-slate-400 text-xs leading-relaxed">
-                      {todaySession.cancelReason || "공휴일 및 학사 일정에 따른 미운영"} - 다음 정규 운영일에 만나요!
+                      {todaySession?.cancelReason || "공휴일 및 학사 일정에 따른 미운영"} - 다음 정규 운영일에 만나요!
                     </p>
                   </div>
                 ) : (
@@ -212,9 +224,9 @@ export default function HomePage() {
                     <div className="flex justify-between text-xs font-semibold">
                       <span className="text-slate-300">실시간 접수 인원</span>
                       <span className="text-white font-extrabold">
-                        {data ? `${data.stats.applicantsCount} / 30명` : "0 / 30명"}
+                        {data && isTodaySession ? `${data.stats.applicantsCount} / 30명` : "0 / 30명"}
                         <span className="text-emerald-400 ml-1.5">
-                          (잔여 {data ? data.stats.remainingSlots : 30}자리)
+                          (잔여 {data && isTodaySession ? data.stats.remainingSlots : 30}자리)
                         </span>
                       </span>
                     </div>
@@ -224,7 +236,7 @@ export default function HomePage() {
                         style={{
                           width: `${Math.min(
                             100,
-                            ((data?.stats.applicantsCount || 0) / 30) * 100
+                            (((data && isTodaySession) ? data.stats.applicantsCount : 0) / 30) * 100
                           )}%`,
                         }}
                       />
@@ -242,7 +254,7 @@ export default function HomePage() {
                     >
                       🚫 오늘 운영 취소 (신청 불가)
                     </button>
-                  ) : todaySession?.status === "OFF" ? (
+                  ) : isOff ? (
                     <button
                       type="button"
                       disabled
@@ -250,7 +262,7 @@ export default function HomePage() {
                     >
                       💤 오늘 미운영 (신청 불가)
                     </button>
-                  ) : !loading && todaySession?.status === "READY" ? (
+                  ) : isReady ? (
                     <Link
                       href="/apply"
                       className="w-full py-2.5 px-4 rounded-xl bg-amber-500/30 hover:bg-amber-500/40 text-amber-200 border border-amber-400/40 font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all"
@@ -258,7 +270,7 @@ export default function HomePage() {
                       <Clock className="w-4 h-4 text-amber-300" />
                       07:40 오픈 예정
                     </Link>
-                  ) : !loading && todaySession?.status === "CLOSED" ? (
+                  ) : isTodaySession && todaySession?.status === "CLOSED" ? (
                     <Link
                       href="/schedule"
                       className="w-full py-2.5 px-4 rounded-xl bg-white/15 hover:bg-white/25 text-slate-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 border border-white/15 transition-all"
