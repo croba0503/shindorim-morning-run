@@ -39,12 +39,22 @@ interface NoticeItem {
   title: string;
   content: string;
   type: string;
+  createdAt?: string;
+  isActive?: boolean;
 }
 
 export default function SchedulePage() {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [notices, setNotices] = useState<NoticeItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // 대한민국 표준시(KST, Asia/Seoul) 기준 오늘 날짜 문자열 (YYYY-MM-DD)
+  const todayKST = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
   // Month navigation: default to today (or September 2026 if in demo)
   const [currentDate, setCurrentDate] = useState(() => {
@@ -67,10 +77,9 @@ export default function SchedulePage() {
 
           // If there are sessions, set calendar view to the most relevant session month
           if (fetchedSessions.length > 0) {
-            const todayStr = new Date().toISOString().slice(0, 10);
-            const todaySession = fetchedSessions.find((s) => s.date === todayStr);
+            const todaySession = fetchedSessions.find((s) => s.date === todayKST);
             if (todaySession) {
-              setSelectedDateStr(todayStr);
+              setSelectedDateStr(todayKST);
             } else {
               // Select the latest session
               const sorted = [...fetchedSessions].sort((a, b) => b.date.localeCompare(a.date));
@@ -83,7 +92,38 @@ export default function SchedulePage() {
       })
       .catch((err) => console.error("Schedule error:", err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [todayKST]);
+
+  const todaySession = sessions.find((s) => s.date === todayKST);
+
+  // 공지 필터링: URGENT 공지는 반드시 당일 세션이 취소(todaySession?.status === "CANCELLED" && todaySession?.date === todayKST)이고 당일 생성/해당일 공지만 노출
+  const visibleNotices = notices.filter((n) => {
+    if (n.type === "URGENT") {
+      const isTodayCancelled = Boolean(
+        todaySession &&
+        todaySession.date === todayKST &&
+        todaySession.status === "CANCELLED"
+      );
+      if (!isTodayCancelled) return false;
+
+      let createdKST = "";
+      if (n.createdAt) {
+        try {
+          createdKST = new Intl.DateTimeFormat("en-CA", {
+            timeZone: "Asia/Seoul",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(new Date(n.createdAt));
+        } catch (e) {}
+      }
+
+      const matchesToday = (n.content && n.content.includes(todayKST)) || (createdKST === todayKST);
+      return matchesToday;
+    }
+
+    return true;
+  });
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed (0 = Jan, 8 = Sep)
@@ -739,14 +779,14 @@ export default function SchedulePage() {
       )}
 
       {/* Notice box if available */}
-      {notices.length > 0 && (
+      {visibleNotices.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 space-y-2">
           <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
             <AlertCircle className="w-4 h-4 text-amber-600" />
             건강안전부 아침달리기 운영 안내
           </div>
           <div className="space-y-1.5 text-xs sm:text-sm text-amber-900">
-            {notices.map((n) => (
+            {visibleNotices.map((n) => (
               <p key={n.id} className="leading-relaxed">
                 • <strong>{n.title}</strong>: {n.content}
               </p>

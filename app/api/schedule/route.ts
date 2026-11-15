@@ -52,10 +52,20 @@ export async function GET() {
       };
     });
 
+    const todaySession = db.sessions.find((s) => s.date === todayStr);
+
+    const activeNotices = db.notices.filter((n) => n.isActive);
+    const filteredNotices = activeNotices.filter((n) => {
+      if (n.type === "URGENT") {
+        return Boolean(todaySession && todaySession.status === "CANCELLED" && todaySession.date === todayStr);
+      }
+      return true;
+    });
+
     return NextResponse.json({
       success: true,
       sessions: sessionsWithStats,
-      notices: db.notices.filter((n) => n.isActive),
+      notices: filteredNotices,
     });
   } catch (error) {
     console.error("Error in GET /api/schedule:", error);

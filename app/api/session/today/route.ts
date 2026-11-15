@@ -91,6 +91,13 @@ export async function GET() {
       urgentNotice = activeNotices.find((n) => n.type === "URGENT") || null;
     }
 
+    const filteredNotices = activeNotices.filter((n) => {
+      if (n.type === "URGENT") {
+        return session.status === "CANCELLED" && session.date === todayStr;
+      }
+      return true;
+    });
+
     const remainingSlots = session.isForceOpen
       ? Math.max(5, session.maxCapacity - applicantsCount)
       : Math.max(0, session.maxCapacity - applicantsCount);
@@ -119,7 +126,7 @@ export async function GET() {
       message,
       kstTimeStr,
       urgentNotice,
-      notices: activeNotices,
+      notices: filteredNotices,
     });
   } catch (error) {
     console.error("Error in GET /api/session/today:", error);
