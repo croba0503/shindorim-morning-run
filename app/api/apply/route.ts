@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     const minute = p.minute.padStart(2, "0");
     const kstTimeStr = `${hour}:${minute}`;
 
-    // Check OFF / CANCELLED status
+    // 1. Check OFF / CANCELLED status (원천 차단)
     if (session.status === "OFF") {
       return NextResponse.json(
         { success: false, message: "오늘은 정기 미운영일로 신청할 수 없습니다." },
@@ -49,44 +49,42 @@ export async function POST(req: Request) {
       );
     }
 
-    // KST time validation (07:40 ~ 08:30) - if isForceOpen is true, bypass time restrictions
+    const todayRecords = db.records.filter((r) => r.sessionId === session.id);
+
+    // 2. KST time & capacity validation - isForceOpen인 경우 시간/정원 제한 우회
     if (!session.isForceOpen) {
       if (kstTimeStr < "07:40") {
         return NextResponse.json(
-          { success: false, message: "참가신청은 아침 07:40부터 가능합니다." },
+          { success: false, message: "아침 07:40부터 참가신청이 시작됩니다." },
           { status: 400 }
         );
       }
 
       if (kstTimeStr >= "08:30") {
         return NextResponse.json(
-          { success: false, message: "오늘 아침달리기 신청 시간(08:30)이 종료되었습니다." },
+          { success: false, message: "오늘 아침달리기 접수가 마감되었습니다." },
+          { status: 400 }
+        );
+      }
+
+      if (todayRecords.length >= session.maxCapacity) {
+        return NextResponse.json(
+          { success: false, message: `오늘 선착순 ${session.maxCapacity}명 신청이 이미 마감되었습니다.` },
           { status: 400 }
         );
       }
     }
 
-    // Check if session is open
-    if (!session.isOpen || (session.status !== "OPEN" && !session.isForceOpen)) {
-      return NextResponse.json(
-        { success: false, message: "현재 아침달리기 참가 신청이 접수 중이 아닙니다." },
-        { status: 400 }
-      );
+    // 3. 07:40~08:30 운영 시간 내 정상 신청 시 자동으로 isOpen: true, status: "OPEN" 동기화
+    if (!session.isOpen || session.status !== "OPEN") {
+      session.isOpen = true;
+      session.status = "OPEN";
     }
 
     // Check participation code
     if (session.code !== trimmedCode) {
       return NextResponse.json(
         { success: false, message: "참가코드가 일치하지 않습니다. 운동장 본부석 선생님께 확인해주세요." },
-        { status: 400 }
-      );
-    }
-
-    // Check capacity (선착순 30명,단 isForceOpen일 경우 초과 허용)
-    const todayRecords = db.records.filter((r) => r.sessionId === session.id);
-    if (!session.isForceOpen && todayRecords.length >= session.maxCapacity) {
-      return NextResponse.json(
-        { success: false, message: `오늘 선착순 ${session.maxCapacity}명 신청이 이미 마감되었습니다.` },
         { status: 400 }
       );
     }

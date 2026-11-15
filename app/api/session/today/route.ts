@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readDb, getOrCreateTodaySession, getTodayKST } from "@/lib/db";
+import { readDb, writeDb, getOrCreateTodaySession, getTodayKST } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -64,10 +64,6 @@ export async function GET() {
         status = "CLOSED";
         isOpen = false;
         message = "오늘 아침달리기 운영 및 접수가 마감되었습니다.";
-      } else if (session.isOpen === false && session.status === "CLOSED") {
-        status = "CLOSED";
-        isOpen = false;
-        message = "오늘 아침달리기 운영 및 접수가 마감되었습니다.";
       } else {
         // Between 07:40 and 08:30
         if (applicantsCount >= session.maxCapacity) {
@@ -79,6 +75,12 @@ export async function GET() {
           isOpen = true;
           message = "선착순 참가신청 접수 중입니다.";
         }
+      }
+
+      if (session.status !== status || session.isOpen !== isOpen) {
+        session.status = status;
+        session.isOpen = isOpen;
+        await writeDb(db);
       }
     }
 

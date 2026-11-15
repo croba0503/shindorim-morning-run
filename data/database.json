@@ -49,12 +49,13 @@
       "id": "sess-2026-09-26",
       "date": "2026-09-26",
       "dayOfWeek": "토",
-      "sessionNumber": 5,
-      "code": "4821",
-      "isOpen": true,
-      "maxCapacity": 30,
+      "sessionNumber": 0,
+      "code": "-",
+      "isOpen": false,
+      "maxCapacity": 0,
       "isDoubleMileage": false,
-      "status": "OPEN"
+      "status": "OFF",
+      "cancelReason": "주말 정기 휴무"
     },
     {
       "id": "sess-2026-09-28",

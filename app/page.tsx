@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Sparkles,
   Zap,
-  X,
 } from "lucide-react";
 
 interface TodaySessionData {
@@ -41,8 +40,6 @@ interface TodaySessionData {
 export default function HomePage() {
   const [data, setData] = useState<TodaySessionData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showCancelBanner, setShowCancelBanner] = useState(true);
-  const [showOffBanner, setShowOffBanner] = useState(true);
 
   // 대한민국 표준시(KST) 기준 오늘 날짜 문자열 (YYYY-MM-DD)
   const todayKST = new Intl.DateTimeFormat("en-CA", {
@@ -76,39 +73,6 @@ export default function HomePage() {
 
   return (
     <>
-      {/* 긴급 취소 배너(CANCELLED) 또는 정기 미운영 배너(OFF) - 반드시 날짜 일치(todaySession.date === todayKST) 시에만 렌더링 */}
-      {showCancelBanner && isCancelled && todaySession && todaySession.date === todayKST ? (
-        <div className="bg-gradient-to-r from-rose-600 to-red-600 text-white py-2.5 px-4 text-xs sm:text-sm font-black shadow-md flex items-center justify-between gap-2 z-50 sticky top-0">
-          <div className="flex items-center gap-2 max-w-4xl mx-auto flex-1 justify-center sm:justify-start">
-            <span>
-              🌧️ 긴급 공지: 오늘({todaySession.date}) 아침달리기는 우천(기상 악화)으로 인해 취소되었습니다. ({todaySession.cancelReason || "안전사고 예방"})
-            </span>
-          </div>
-          <button
-            onClick={() => setShowCancelBanner(false)}
-            className="p-1 rounded-lg hover:bg-white/20 transition-colors text-white/90 hover:text-white flex-shrink-0"
-            title="배너 닫기"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      ) : showOffBanner && isOff && todaySession && todaySession.date === todayKST ? (
-        <div className="bg-gradient-to-r from-slate-700 via-slate-800 to-zinc-800 text-white py-2.5 px-4 text-xs sm:text-sm font-bold shadow-md flex items-center justify-between gap-2 z-50 sticky top-0 border-b border-slate-600/50">
-          <div className="flex items-center gap-2 max-w-4xl mx-auto flex-1 justify-center sm:justify-start">
-            <span>
-              📢 안내: 오늘({todaySession.date})은 아침달리기 정기 미운영일입니다. ({todaySession.cancelReason || "공휴일/학사일정/휴무"})
-            </span>
-          </div>
-          <button
-            onClick={() => setShowOffBanner(false)}
-            className="p-1 rounded-lg hover:bg-white/20 transition-colors text-white/90 hover:text-white flex-shrink-0"
-            title="배너 닫기"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      ) : null}
-
       <div className="space-y-12 pb-10">
         {/* Hero Section */}
         <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-900 text-white pt-12 pb-16 px-4 sm:px-6">

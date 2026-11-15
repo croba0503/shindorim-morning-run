@@ -12,6 +12,51 @@ export async function GET() {
       .filter((r) => r.sessionId === session.id)
       .sort((a, b) => a.appliedAt.localeCompare(b.appliedAt));
 
+    // Calculate KST current time (HH:mm)
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Seoul",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(now);
+    const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
+    const hour = (p.hour === "24" ? "00" : p.hour).padStart(2, "0");
+    const minute = p.minute.padStart(2, "0");
+    const kstTimeStr = `${hour}:${minute}`;
+
+    // 07:40~08:30 운영 시간 자동 오픈 및 상태 동기화 (OFF 또는 CANCELLED가 아닐 때)
+    if (session.status !== "OFF" && session.status !== "CANCELLED") {
+      let status = session.status || "READY";
+      let isOpen = Boolean(session.isOpen);
+
+      if (session.isForceOpen) {
+        status = "OPEN";
+        isOpen = true;
+      } else if (kstTimeStr < "07:40") {
+        status = "READY";
+        isOpen = false;
+      } else if (kstTimeStr >= "08:30") {
+        status = "CLOSED";
+        isOpen = false;
+      } else {
+        // 07:40 ~ 08:30 사이
+        if (todayRecords.length >= session.maxCapacity) {
+          status = "CLOSED";
+          isOpen = false;
+        } else {
+          status = "OPEN";
+          isOpen = true;
+        }
+      }
+
+      if (session.status !== status || session.isOpen !== isOpen) {
+        session.status = status;
+        session.isOpen = isOpen;
+        await writeDb(db);
+      }
+    }
+
     const certifiedCount = todayRecords.filter((r) => r.isCertified).length;
     const waitingCount = todayRecords.filter((r) => !r.isCertified).length;
 

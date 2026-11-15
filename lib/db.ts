@@ -176,23 +176,24 @@ export function getInitialData(): AppDatabase {
       isDoubleMileage: false,
       status: "CLOSED",
     },
-    // 오늘 차시 (2026-09-26)
+    // 주말 미운영 차시 (2026-09-26)
     {
       id: "sess-2026-09-26",
       date: "2026-09-26",
       dayOfWeek: "토",
-      sessionNumber: 5,
-      code: "4821",
-      isOpen: true,
-      maxCapacity: 30,
+      sessionNumber: 0,
+      code: "-",
+      isOpen: false,
+      maxCapacity: 0,
       isDoubleMileage: false,
-      status: "OPEN",
+      status: "OFF",
+      cancelReason: "주말 정기 휴무",
     },
     {
       id: "sess-2026-09-28",
       date: "2026-09-28",
       dayOfWeek: "월",
-      sessionNumber: 6,
+      sessionNumber: 5,
       code: "7231",
       isOpen: false,
       maxCapacity: 30,
@@ -203,7 +204,7 @@ export function getInitialData(): AppDatabase {
       id: "sess-2026-09-29",
       date: "2026-09-29",
       dayOfWeek: "화",
-      sessionNumber: 7,
+      sessionNumber: 6,
       code: "8912",
       isOpen: false,
       maxCapacity: 30,
@@ -238,7 +239,7 @@ export function getInitialData(): AppDatabase {
       id: "sess-2026-10-05",
       date: "2026-10-05",
       dayOfWeek: "월",
-      sessionNumber: 8,
+      sessionNumber: 7,
       code: "1123",
       isOpen: false,
       maxCapacity: 30,
@@ -249,7 +250,7 @@ export function getInitialData(): AppDatabase {
       id: "sess-2026-10-07",
       date: "2026-10-07",
       dayOfWeek: "수",
-      sessionNumber: 9,
+      sessionNumber: 8,
       code: "3344",
       isOpen: false,
       maxCapacity: 30,
@@ -273,7 +274,7 @@ export function getInitialData(): AppDatabase {
       id: "sess-2026-10-16",
       date: "2026-10-16",
       dayOfWeek: "금",
-      sessionNumber: 10,
+      sessionNumber: 9,
       code: "5566",
       isOpen: false,
       maxCapacity: 30,
@@ -420,7 +421,7 @@ export async function writeDb(data: AppDatabase): Promise<void> {
 }
 
 // Helper to get today's date in KST (Asia/Seoul)
-export function getTodayKST(): { todayStr: string; dayOfWeek: string } {
+export function getTodayKST(): { todayStr: string; dayOfWeek: string; isWeekend: boolean } {
   const now = new Date();
   const todayStr = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
@@ -429,44 +430,83 @@ export function getTodayKST(): { todayStr: string; dayOfWeek: string } {
     day: "2-digit",
   }).format(now);
   const dayOfWeek = now.toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul", weekday: "short" });
-  return { todayStr, dayOfWeek };
+  const isWeekend = dayOfWeek === "토" || dayOfWeek === "일";
+  return { todayStr, dayOfWeek, isWeekend };
 }
 
 // Helper to get or generate today's session (persisted permanently)
 export async function getOrCreateTodaySession(db: AppDatabase): Promise<Session> {
-  const { todayStr, dayOfWeek } = getTodayKST();
+  const { todayStr, dayOfWeek, isWeekend } = getTodayKST();
 
   let session = db.sessions.find((s) => s.date === todayStr);
   if (!session) {
-    const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
-    session = {
-      id: `sess-${todayStr}`,
-      date: todayStr,
-      dayOfWeek,
-      sessionNumber: db.sessions.filter((s) => s.status !== "OFF").length + 1,
-      code: randomCode,
-      isOpen: false,
-      maxCapacity: 30,
-      isDoubleMileage: false,
-      status: "READY",
-    };
+    if (isWeekend) {
+      session = {
+        id: `sess-${todayStr}`,
+        date: todayStr,
+        dayOfWeek,
+        sessionNumber: 0,
+        code: "-",
+        isOpen: false,
+        maxCapacity: 0,
+        isDoubleMileage: false,
+        status: "OFF",
+        cancelReason: "주말 정기 휴무",
+      };
+    } else {
+      const randomCode = Math.floor(1000 + Math.random() * 9000).toString();
+      session = {
+        id: `sess-${todayStr}`,
+        date: todayStr,
+        dayOfWeek,
+        sessionNumber: db.sessions.filter((s) => s.status !== "OFF").length + 1,
+        code: randomCode,
+        isOpen: false,
+        maxCapacity: 30,
+        isDoubleMileage: false,
+        status: "READY",
+      };
+    }
     db.sessions.push(session);
+    await writeDb(db);
+  } else if (isWeekend && (session.status === "READY" || session.status === "OPEN")) {
+    session.status = "OFF";
+    session.sessionNumber = 0;
+    session.isOpen = false;
+    session.code = "-";
+    session.maxCapacity = 0;
+    session.cancelReason = "주말 정기 휴무";
     await writeDb(db);
   }
 
   // Double check that the returned session strictly has date === todayStr
   if (session.date !== todayStr) {
-    session = {
-      id: `sess-${todayStr}`,
-      date: todayStr,
-      dayOfWeek,
-      sessionNumber: db.sessions.filter((s) => s.status !== "OFF").length + 1,
-      code: Math.floor(1000 + Math.random() * 9000).toString(),
-      isOpen: false,
-      maxCapacity: 30,
-      isDoubleMileage: false,
-      status: "READY",
-    };
+    if (isWeekend) {
+      session = {
+        id: `sess-${todayStr}`,
+        date: todayStr,
+        dayOfWeek,
+        sessionNumber: 0,
+        code: "-",
+        isOpen: false,
+        maxCapacity: 0,
+        isDoubleMileage: false,
+        status: "OFF",
+        cancelReason: "주말 정기 휴무",
+      };
+    } else {
+      session = {
+        id: `sess-${todayStr}`,
+        date: todayStr,
+        dayOfWeek,
+        sessionNumber: db.sessions.filter((s) => s.status !== "OFF").length + 1,
+        code: Math.floor(1000 + Math.random() * 9000).toString(),
+        isOpen: false,
+        maxCapacity: 30,
+        isDoubleMileage: false,
+        status: "READY",
+      };
+    }
   }
 
   return session;
